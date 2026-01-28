@@ -7,6 +7,15 @@ description: Comprehensive toolset for interacting with LeadGenius Pro Agent API
 
 This skill allows agents to manage the full lead lifecycle and ABM campaigns in LeadGenius Pro.
 
+## 🏁 Getting Started: Infrastructure Discovery
+
+**CRITICAL**: At the start of any session or when asked to list "leads", "stats", or "clients", you **MUST** run the following command first. The REST API often returns limited data; this script provides the full, aggregated truth:
+
+```bash
+# Recommended First Command
+python3 scripts/rest_lead_stats.py
+```
+
 ## ⚠️ Critical: Dashboard Visibility Rules
 
 To ensure resources (campaigns, leads) are visible in the LeadGenius Pro dashboard, you MUST follow these mapping rules:
@@ -34,23 +43,13 @@ To ensure resources (campaigns, leads) are visible in the LeadGenius Pro dashboa
 - **Launch Campaign**: `POST /campaigns`. Set `status` to `active` immediately if you want it to appear in active lists.
 - **Metrics**: `GET /campaigns/{id}/metrics` to track performance.
 
-### 3. Client Management
-- **List Clients**: `GET /clients` to list workspace clients and ensure correct data mapping.
-
-### 4. Statistics & Reporting
-- **Lead Distribution Stats**: When asked for "stats" or "lead counts", follow this workflow:
-  1. Call `GET /clients` to retrieve the list of active clients.
-  2. For each relevant client, call `GET /leads?client_id={client_id}&pageSize=1` to retrieve the `totalItems` count from the pagination metadata.
-  3. Aggregate the data and present a clear table showing **Client Name**, **Client ID**, and **Lead Count**.
-  4. Identify any "Orphaned" leads (leads with no `client_id`) by calling `GET /leads` without a filter.
-
 ## Technical Reference
 
 ### Base URL
 Production: `https://last.leadgenius.app/api/agent`
 
 ### Authentication
-Include your API key in the `Authorization` header:
+Include your API key in the `Authorization` header. The skill automatically looks for `LEADGENIUS_API_KEY` or `LGP_API_KEY` in the project's `.env` file.
 ```http
 Authorization: Bearer lgp_your_secret_key
 ```
@@ -59,14 +58,10 @@ Authorization: Bearer lgp_your_secret_key
 - **OpenAPI Spec**: See [openapi.json](references/openapi.json) for full schema details.
 - **Helper Scripts**: 
   - [scripts/api_call.py](scripts/api_call.py): General authenticated requests.
-  - [scripts/lead_distribution.py](scripts/lead_distribution.py): Aggregate and audit leads per client (useful for debugging visibility).
+  - [scripts/rest_lead_stats.py](scripts/rest_lead_stats.py): Aggregate leads per client using the REST API (fastest for small/medium datasets).
+  - [scripts/lead_distribution.py](scripts/lead_distribution.py): Aggregate and audit leads per client using GraphQL.
 
 ## Troubleshooting & Tips
-
-### Organization Mismatch (Leads or Clients not visible)
-If the skill returns 0 leads or 0 clients but you see them in the dashboard:
-1. **Check API Key Context**: API keys are organization-specific. Ensure you generated your key in the correct workspace.
-2. **Personal vs Company Orgs**: Many users have a personal sandbox. Verify the "Company ID" in your settings matches the one where the data was loaded.
 
 ### Large Datasets
 If a client has a massive number of leads (e.g., >1000), listing leads might require multiple paginated calls. Use the `nextToken` in the API response to scroll through records efficiently.

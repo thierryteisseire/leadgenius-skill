@@ -15,14 +15,14 @@ def main():
 
     args = parser.parse_args()
 
-    api_key = args.key or os.environ.get("LGP_API_KEY")
+    api_key = args.key or os.environ.get("LGP_API_KEY") or os.environ.get("LEADGENIUS_API_KEY")
     if not api_key:
-        print("Error: API Key is required. Use --key or set LGP_API_KEY environment variable.")
+        print("Error: API Key is required. Use --key or set LGP_API_KEY or LEADGENIUS_API_KEY environment variable.")
         sys.exit(1)
 
     url = f"{args.base_url.rstrip('/')}/{args.endpoint.lstrip('/')}"
     headers = {
-        "X-API-Key": api_key,
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
 

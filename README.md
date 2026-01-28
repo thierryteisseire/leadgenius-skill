@@ -1,37 +1,32 @@
 # LeadGenius Pro Agent API Skill
 
-A specialized skill for AI agents to interact with the LeadGenius Pro B2B platform. This skill enables agents to manage ABM campaigns, enrich leads, and automate outreach workflows.
+This skill provides a set of tools and scripts for AI agents to interact with the LeadGenius Pro Agent API.
 
-## 🚀 Installation
+## Features
 
-Add this skill to your agent environment:
+- **Lead Management**: Create, list, and update leads.
+- **Campaign Operations**: Launch and track ABM campaigns.
+- **Authentication**: Supports Bearer tokens.
+- **Environment Support**: Automatically loads `LEADGENIUS_API_KEY` or `LGP_API_KEY` from a `.env` file in the project root.
+- **Statistics**: Includes a script to aggregate leads per client.
+
+## Installation
+
+This skill can be used directly by AI agents. To use the scripts manually:
 
 ```bash
-npx skills add https://github.com/thierryteisseire/leadgenius-skill
+pip install requests
 ```
 
-## 🛠️ Features
+## Available Scripts
 
-- **Lead Lifecycle**: List, create, and transition lead statuses.
-- **AI Enrichment**: Trigger automated data augmentation for person and company data.
-- **Campaign Management**: Handle ABM targets and monitor ROI metrics.
-- **Analytics**: Pull pipeline performance and conversion trends.
-- **Integrations**: Sync data with CRMs and configure webhooks.
+- `scripts/api_call.py`: A versatile CLI for making arbitary API calls.
+- `scripts/rest_lead_stats.py`: Summarizes lead counts per `client_id` using the REST API.
+- `scripts/lead_distribution.py`: Advanced distribution audit using GraphQL (requires AppSync key).
 
-## 📂 Repository Structure
+## Development
 
-- `SKILL.md`: Core instructions for AI agents.
-- `references/`: Detailed documentation.
-  - `api_reference.md`: Human-readable endpoint documentation.
-  - `openapi.json`: Machine-readable specification.
-- `scripts/`: Helper utilities.
-  - `api_call.py`: CLI tool for testing API requests.
-
-## 🔑 Requirements
-
-To use this skill, you need a LeadGenius Pro API Key.
-- Base URL: `/api/agent`
-- Headers: `X-API-Key: lgp_your_key`
-
-## ⚖️ License
-MIT License. See [LICENSE.txt](LICENSE.txt) for details.
+Changes in version 1.0.1:
+- Fixed authentication header to use `Bearer` scheme.
+- Added support for `LEADGENIUS_API_KEY` environment variable.
+- Added `rest_lead_stats.py` for quick visibility into lead distribution.
