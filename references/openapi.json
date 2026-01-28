@@ -1,0 +1,215 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "LeadGenius Pro Agent API",
+        "description": "RESTful API for AI agents to manage ABM campaigns and lead lifecycle in LeadGenius Pro",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "/api/agent",
+            "description": "Agent API Base URL"
+        }
+    ],
+    "paths": {
+        "/campaigns": {
+            "get": {
+                "summary": "List campaigns",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "pageSize",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 20
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "campaignType",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "summary": "Create campaign",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Campaign"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/campaigns/{id}": {
+            "get": {
+                "summary": "Get campaign by ID"
+            },
+            "put": {
+                "summary": "Update campaign"
+            },
+            "delete": {
+                "summary": "Archive campaign"
+            }
+        },
+        "/leads": {
+            "get": {
+                "summary": "List leads",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "pageSize",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "campaignId",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "summary": "Create lead"
+            }
+        },
+        "/leads/batch": {
+            "post": {
+                "summary": "Batch create leads"
+            },
+            "delete": {
+                "summary": "Batch delete leads"
+            }
+        },
+        "/enrichment/trigger": {
+            "post": {
+                "summary": "Trigger enrichment"
+            }
+        },
+        "/enrichment/status/{jobId}": {
+            "get": {
+                "summary": "Get enrichment job status"
+            }
+        },
+        "/target-accounts": {
+            "get": {
+                "summary": "List target accounts"
+            },
+            "post": {
+                "summary": "Create target account"
+            }
+        },
+        "/sequences": {
+            "get": {
+                "summary": "List sequences"
+            },
+            "post": {
+                "summary": "Create sequence"
+            }
+        },
+        "/sequences/{id}/enroll": {
+            "post": {
+                "summary": "Enroll leads in sequence"
+            }
+        },
+        "/analytics/pipeline": {
+            "get": {
+                "summary": "Get pipeline metrics"
+            }
+        },
+        "/workflows": {
+            "get": {
+                "summary": "List workflows"
+            },
+            "post": {
+                "summary": "Create workflow"
+            }
+        },
+        "/integrations": {
+            "get": {
+                "summary": "List integrations"
+            },
+            "post": {
+                "summary": "Create integration"
+            }
+        },
+        "/webhooks": {
+            "get": {
+                "summary": "List webhooks"
+            },
+            "post": {
+                "summary": "Create webhook"
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Campaign": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "campaignType": {
+                        "type": "string",
+                        "enum": [
+                            "abm",
+                            "demand_gen",
+                            "nurture"
+                        ]
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "draft",
+                            "active",
+                            "paused",
+                            "completed",
+                            "archived"
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}
