@@ -1,11 +1,11 @@
 {
-    "name": "@thierryteisseire/leadgenius-skill",
+    "name": "@epsimo-agent/leadgenius-skill",
     "version": "1.0.0",
     "description": "LeadGenius Pro Agent API Skill for AI agents",
     "main": "SKILL.md",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/thierryteisseire/leadgenius-skill.git"
+        "url": "git+https://github.com/epsimo-agent/leadgenius-skill.git"
     },
     "keywords": [
         "agent-skill",
@@ -14,12 +14,12 @@
         "abm",
         "lead-generation"
     ],
-    "author": "Thierry Teisseire",
+    "author": "Epsimo AI",
     "license": "MIT",
     "bugs": {
-        "url": "https://github.com/thierryteisseire/leadgenius-skill/issues"
+        "url": "https://github.com/epsimo-agent/leadgenius-skill/issues"
     },
-    "homepage": "https://github.com/thierryteisseire/leadgenius-skill#readme",
+    "homepage": "https://github.com/epsimo-agent/leadgenius-skill#readme",
     "files": [
         "SKILL.md",
         "references/",

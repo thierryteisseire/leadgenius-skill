@@ -7,7 +7,7 @@ A specialized skill for AI agents to interact with the LeadGenius Pro B2B platfo
 Add this skill to your agent environment:
 
 ```bash
-npx skills add https://github.com/thierryteisseire/leadgenius-skill
+npx skills add https://github.com/epsimo-agent/leadgenius-skill
 ```
 
 ## 🛠️ Features
