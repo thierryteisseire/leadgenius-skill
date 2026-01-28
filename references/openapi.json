@@ -139,14 +139,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/PaginatedLeads"
-                                }
-                            }
-                        }
+                        "description": "Success"
                     }
                 }
             },
@@ -182,47 +175,6 @@
                                             "$ref": "#/components/schemas/CreateLeadInput"
                                         }
                                     }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/clients": {
-            "get": {
-                "summary": "List clients",
-                "description": "Retrieves workspace clients for lead categorization.",
-                "parameters": [
-                    {
-                        "name": "page",
-                        "in": "query",
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
-                    {
-                        "name": "pageSize",
-                        "in": "query",
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
-                    {
-                        "name": "name",
-                        "in": "query",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/PaginatedClients"
                                 }
                             }
                         }
@@ -332,99 +284,6 @@
                                 "type": "integer"
                             }
                         }
-                    }
-                }
-            },
-            "PaginatedLeads": {
-                "type": "object",
-                "properties": {
-                    "success": {
-                        "type": "boolean"
-                    },
-                    "data": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/Lead"
-                        }
-                    },
-                    "pagination": {
-                        "type": "object",
-                        "properties": {
-                            "totalItems": {
-                                "type": "integer"
-                            },
-                            "totalPages": {
-                                "type": "integer"
-                            }
-                        }
-                    }
-                }
-            },
-            "PaginatedClients": {
-                "type": "object",
-                "properties": {
-                    "success": {
-                        "type": "boolean"
-                    },
-                    "data": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/Client"
-                        }
-                    },
-                    "pagination": {
-                        "type": "object",
-                        "properties": {
-                            "totalItems": {
-                                "type": "integer"
-                            }
-                        }
-                    }
-                }
-            },
-            "Lead": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "string"
-                    },
-                    "firstName": {
-                        "type": "string"
-                    },
-                    "lastName": {
-                        "type": "string"
-                    },
-                    "fullName": {
-                        "type": "string"
-                    },
-                    "email": {
-                        "type": "string"
-                    },
-                    "companyName": {
-                        "type": "string"
-                    },
-                    "status": {
-                        "type": "string"
-                    },
-                    "client_id": {
-                        "type": "string"
-                    }
-                }
-            },
-            "Client": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "string"
-                    },
-                    "client_id": {
-                        "type": "string"
-                    },
-                    "clientName": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
                     }
                 }
             },

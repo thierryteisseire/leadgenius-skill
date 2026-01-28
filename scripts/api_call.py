@@ -25,6 +25,10 @@ def main():
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
+    
+    company_id = os.environ.get("LGP_COMPANY_ID")
+    if company_id:
+        headers["X-Company-Id"] = company_id
 
     try:
         data = None

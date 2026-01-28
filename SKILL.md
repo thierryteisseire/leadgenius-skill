@@ -43,6 +43,10 @@ To ensure resources (campaigns, leads) are visible in the LeadGenius Pro dashboa
 - **Launch Campaign**: `POST /campaigns`. Set `status` to `active` immediately if you want it to appear in active lists.
 - **Metrics**: `GET /campaigns/{id}/metrics` to track performance.
 
+### 3. Data Synchronization (Indexing)
+If you notice that `GET /leads` returns fewer results than `rest_lead_stats.py`, the REST search index needs to be synced:
+- **Trigger Sync**: Run `python3 scripts/index_leads.py`. This touches leads via GraphQL to force them into the REST search engine.
+
 ## Technical Reference
 
 ### Base URL
