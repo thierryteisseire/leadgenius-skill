@@ -12,7 +12,10 @@
         "leadgenius",
         "ai-agent",
         "abm",
-        "lead-generation"
+        "lead-generation",
+        "claude-skill",
+        "agent-skills",
+        "sdk"
     ],
     "author": "Thierry Teisseire",
     "license": "MIT",
