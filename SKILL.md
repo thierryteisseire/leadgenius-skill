@@ -46,7 +46,10 @@ This skill provides a comprehensive interface for interacting with the LeadGeniu
 ## Technical Reference
 
 ### Base URL
-All requests are relative to: `/api/agent` (e.g. `https://last.leadgenius.app/api/agent/leads`)
+The API uses separate root paths for different scopes:
+- **Agent Scope (Default)**: `/api/agent` (e.g. `https://last.leadgenius.app/api/agent/leads`) 
+- **Admin Scope**: `/api/admin` (e.g. `.../api/admin/companies`)
+- **System Scope**: `/api` (e.g. `.../api/epsimo-auth`)
 
 ### Unified CLI (lgp.py)
 The primary way to interact with LeadGenius is via the `lgp` CLI tool.

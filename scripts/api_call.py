@@ -37,9 +37,27 @@ def main():
         print("Error: API Key is required. Run 'python3 scripts/auth.py' first, use --key, or set LGP_API_KEY.")
         sys.exit(1)
 
-    url = f"{args.base_url.rstrip('/')}/{args.endpoint.lstrip('/')}"
+    # Detect base path
+    root_base = args.base_url.rstrip('/').replace('/api/agent', '')
+    
+    if args.endpoint.startswith('/admin') or args.endpoint.startswith('admin/'):
+         # Admin routes
+         base_url = f"{root_base}/api/admin"
+         clean_endpoint = args.endpoint.replace('/admin/', '').replace('admin/', '').lstrip('/')
+    elif 'epsimo-auth' in args.endpoint or 'agent-api-keys' in args.endpoint:
+         # Root API routes
+         base_url = f"{root_base}/api"
+         clean_endpoint = args.endpoint.lstrip('/')
+    else:
+         # Default Agent routes
+         base_url = f"{root_base}/api/agent"
+         clean_endpoint = args.endpoint.lstrip('/')
+
+    url = f"{base_url}/{clean_endpoint}"
+    
     headers = {
         "Authorization": f"Bearer {api_key}",
+        "X-API-Key": api_key,
         "Content-Type": "application/json"
     }
 
@@ -48,6 +66,7 @@ def main():
         if args.data:
             data = json.loads(args.data)
 
+        print(f"Calling: {args.method} {url}")
         response = requests.request(args.method, url, headers=headers, json=data)
         
         print(f"Status: {response.status_code}")
