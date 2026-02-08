@@ -35,9 +35,13 @@ This skill provides a comprehensive interface for interacting with the LeadGeniu
 ### 6. Analytics & Insights
 - **Pipeline Health**: Total visibility into conversion rates and pipeline velocity with `GET /analytics/pipeline`.
 
-### 7. Ecosystem & Connectivity
-- **Webhooks**: Register listeners for real-time event notifications with `POST /webhooks`.
-- **Integrations**: Manage sync status for external CRMs (HubSpot, Salesforce) with `GET /integrations`.
+### 7. Maintenance & System Health
+- **Bug Reporting**: Use `POST /maintenance/bugs` to report issues discovered by agents.
+- **Enhancement Requests**: Use `POST /maintenance/enhancements` to suggest features.
+
+### 8. Master Administration
+- **Global Visibility**: List all companies and users across the platform (Admin only).
+- **API Key Management**: Generate and rotate API keys for agent access.
 
 ## Technical Reference
 
@@ -70,10 +74,34 @@ python3 scripts/lgp.py campaigns list
 python3 scripts/lgp.py campaigns create --name "Q3 Expansion"
 ```
 
-#### 4. Insights
+#### 4. Insights & Analytics
 ```bash
-# Show pipeline health
-python3 scripts/lgp.py pipeline
+# Show pipeline health for a specific period
+python3 scripts/lgp.py pipeline --start 2026-01-01 --end 2026-02-08
+```
+
+#### 5. Maintenance & Support
+```bash
+# List and report bugs
+python3 scripts/lgp.py maintenance bugs list
+python3 scripts/lgp.py maintenance bugs report --desc "Enrichment fails on LinkedIn URLs"
+
+# List and request enhancements
+python3 scripts/lgp.py maintenance enhancements list
+python3 scripts/lgp.py maintenance enhancements request --desc "Add support for Google Maps leads"
+```
+
+#### 6. API Key Generation
+```bash
+# Generate a new API Key (Requires active session)
+python3 scripts/lgp.py generate-key --name "Production Agent" --desc "Key for main auto-agent"
+```
+
+#### 7. Global Administration (Admin Only)
+```bash
+# View system-wide data
+python3 scripts/lgp.py admin companies
+python3 scripts/lgp.py admin users
 ```
 
 ### Reference Material

@@ -174,8 +174,9 @@ class LeadGeniusCLI:
             print(f"Campaign created: {data.get('id')}")
 
     # Analytics
-    def show_pipeline(self):
-        data = self._request("GET", "analytics/pipeline")
+    def show_pipeline(self, start_date=None, end_date=None):
+        params = {"startDate": start_date, "endDate": end_date}
+        data = self._request("GET", "analytics/pipeline", params=params)
         if data:
             print("--- Pipeline Metrics ---")
             print(json.dumps(data, indent=2))
@@ -263,7 +264,9 @@ def main():
     camp_parser.add_argument("--name", help="Campaign name")
 
     # Analytics
-    subparsers.add_parser("pipeline", help="Show pipeline analytics")
+    pipeline_parser = subparsers.add_parser("pipeline", help="Show pipeline analytics")
+    pipeline_parser.add_argument("--start", help="Start date (YYYY-MM-DD)")
+    pipeline_parser.add_argument("--end", help="End date (YYYY-MM-DD)")
 
     # Maintenance
     maint_parser = subparsers.add_parser("maintenance", help="Maintenance bugs/enhancements")
@@ -309,7 +312,10 @@ def main():
                 return
             cli.create_campaign(args.name)
     elif args.command == "pipeline":
-        cli.show_pipeline()
+        # Check for --start and --end from pipeline_parser (need to add them)
+        start_date = getattr(args, 'start', (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'))
+        end_date = getattr(args, 'end', datetime.now().strftime('%Y-%m-%d'))
+        cli.show_pipeline(start_date=start_date, end_date=end_date)
     elif args.command == "maintenance":
         if args.mtype == "bugs":
             if args.action == "list":
@@ -334,3 +340,6 @@ def main():
             cli.list_all_users()
     else:
         parser.print_help()
+
+if __name__ == "__main__":
+    main()
