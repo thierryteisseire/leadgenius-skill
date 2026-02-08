@@ -15,9 +15,26 @@ def main():
 
     args = parser.parse_args()
 
+    # Authentication resolution order: 
+    # 1. --key argument
+    # 2. LGP_API_KEY environment variable
+    # 3. Saved credentials in ~/.leadgenius_auth.json
     api_key = args.key or os.environ.get("LGP_API_KEY")
+    
     if not api_key:
-        print("Error: API Key is required. Use --key or set LGP_API_KEY environment variable.")
+        auth_file = os.path.expanduser("~/.leadgenius_auth.json")
+        if os.path.exists(auth_file):
+            try:
+                with open(auth_file, "r") as f:
+                    auth_data = json.load(f)
+                    api_key = auth_data.get("token")
+                    if api_key:
+                        print(f"Using saved credentials for {auth_data.get('email', 'unknown user')}")
+            except Exception as e:
+                print(f"Warning: Failed to read saved credentials: {e}")
+
+    if not api_key:
+        print("Error: API Key is required. Run 'python3 scripts/auth.py' first, use --key, or set LGP_API_KEY.")
         sys.exit(1)
 
     url = f"{args.base_url.rstrip('/')}/{args.endpoint.lstrip('/')}"
