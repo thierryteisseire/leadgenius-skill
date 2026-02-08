@@ -7,19 +7,14 @@
     },
     "servers": [
         {
-            "url": "https://last.leadgenius.app/api/agent",
-            "description": "Production Agent API"
-        },
-        {
             "url": "/api/agent",
-            "description": "Relative Path"
+            "description": "Agent API Base URL"
         }
     ],
     "paths": {
         "/campaigns": {
             "get": {
                 "summary": "List campaigns",
-                "description": "Retrieves a paginated list of ABM campaigns associated with your company.",
                 "parameters": [
                     {
                         "name": "page",
@@ -41,60 +36,40 @@
                         "name": "status",
                         "in": "query",
                         "schema": {
-                            "type": "string",
-                            "enum": [
-                                "draft",
-                                "active",
-                                "paused",
-                                "completed",
-                                "archived"
-                            ]
+                            "type": "string"
                         }
                     },
                     {
                         "name": "campaignType",
                         "in": "query",
                         "schema": {
-                            "type": "string",
-                            "enum": [
-                                "abm",
-                                "demand_gen",
-                                "nurture"
-                            ]
+                            "type": "string"
                         }
                     }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Paginatied list of campaigns",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/PaginatedCampaigns"
-                                }
-                            }
-                        }
-                    }
-                }
+                ]
             },
             "post": {
                 "summary": "Create campaign",
-                "description": "Launches a new ABM initiative. Note: Always associate with a client_id for dashboard visibility.",
                 "requestBody": {
-                    "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/CreateCampaignInput"
+                                "$ref": "#/components/schemas/Campaign"
                             }
                         }
                     }
-                },
-                "responses": {
-                    "201": {
-                        "description": "Campaign created successfully"
-                    }
                 }
+            }
+        },
+        "/campaigns/{id}": {
+            "get": {
+                "summary": "Get campaign by ID"
+            },
+            "put": {
+                "summary": "Update campaign"
+            },
+            "delete": {
+                "summary": "Archive campaign"
             }
         },
         "/leads": {
@@ -128,69 +103,86 @@
                         "schema": {
                             "type": "string"
                         }
-                    },
-                    {
-                        "name": "client_id",
-                        "in": "query",
-                        "schema": {
-                            "type": "string"
-                        }
                     }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Success"
-                    }
-                }
+                ]
             },
             "post": {
-                "summary": "Create lead",
-                "description": "Creates a single lead. CRITICAL: Include firstName, lastName, fullName, and contactName for UI visibility. Use client_id for dashboard categorization.",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/CreateLeadInput"
-                            }
-                        }
-                    }
-                }
+                "summary": "Create lead"
             }
         },
         "/leads/batch": {
             "post": {
-                "summary": "Batch create leads",
-                "description": "Create up to 100 leads in a single call. Same visibility rules apply as single lead creation.",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "leads": {
-                                        "type": "array",
-                                        "items": {
-                                            "$ref": "#/components/schemas/CreateLeadInput"
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                "summary": "Batch create leads"
+            },
+            "delete": {
+                "summary": "Batch delete leads"
+            }
+        },
+        "/enrichment/trigger": {
+            "post": {
+                "summary": "Trigger enrichment"
+            }
+        },
+        "/enrichment/status/{jobId}": {
+            "get": {
+                "summary": "Get enrichment job status"
+            }
+        },
+        "/target-accounts": {
+            "get": {
+                "summary": "List target accounts"
+            },
+            "post": {
+                "summary": "Create target account"
+            }
+        },
+        "/sequences": {
+            "get": {
+                "summary": "List sequences"
+            },
+            "post": {
+                "summary": "Create sequence"
+            }
+        },
+        "/sequences/{id}/enroll": {
+            "post": {
+                "summary": "Enroll leads in sequence"
+            }
+        },
+        "/analytics/pipeline": {
+            "get": {
+                "summary": "Get pipeline metrics"
+            }
+        },
+        "/workflows": {
+            "get": {
+                "summary": "List workflows"
+            },
+            "post": {
+                "summary": "Create workflow"
+            }
+        },
+        "/integrations": {
+            "get": {
+                "summary": "List integrations"
+            },
+            "post": {
+                "summary": "Create integration"
+            }
+        },
+        "/webhooks": {
+            "get": {
+                "summary": "List webhooks"
+            },
+            "post": {
+                "summary": "Create webhook"
             }
         }
     },
     "components": {
         "schemas": {
-            "CreateCampaignInput": {
+            "Campaign": {
                 "type": "object",
-                "required": [
-                    "name",
-                    "campaignType"
-                ],
                 "properties": {
                     "name": {
                         "type": "string"
@@ -210,117 +202,14 @@
                         "type": "string",
                         "enum": [
                             "draft",
-                            "active"
+                            "active",
+                            "paused",
+                            "completed",
+                            "archived"
                         ]
-                    },
-                    "client_id": {
-                        "type": "string",
-                        "description": "Descriptive client identifier (e.g. client_acme_corp)"
-                    }
-                }
-            },
-            "CreateLeadInput": {
-                "type": "object",
-                "required": [
-                    "firstName",
-                    "lastName",
-                    "email"
-                ],
-                "properties": {
-                    "firstName": {
-                        "type": "string"
-                    },
-                    "lastName": {
-                        "type": "string"
-                    },
-                    "fullName": {
-                        "type": "string",
-                        "description": "Highly recommended for UI visibility"
-                    },
-                    "contactName": {
-                        "type": "string",
-                        "description": "Highly recommended for UI visibility"
-                    },
-                    "email": {
-                        "type": "string"
-                    },
-                    "companyName": {
-                        "type": "string"
-                    },
-                    "title": {
-                        "type": "string"
-                    },
-                    "campaignId": {
-                        "type": "string"
-                    },
-                    "client_id": {
-                        "type": "string",
-                        "description": "Maps to the workspace client"
-                    },
-                    "notes": {
-                        "type": "string"
-                    }
-                }
-            },
-            "PaginatedCampaigns": {
-                "type": "object",
-                "properties": {
-                    "success": {
-                        "type": "boolean"
-                    },
-                    "data": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/Campaign"
-                        }
-                    },
-                    "pagination": {
-                        "type": "object",
-                        "properties": {
-                            "totalItems": {
-                                "type": "integer"
-                            },
-                            "totalPages": {
-                                "type": "integer"
-                            }
-                        }
-                    }
-                }
-            },
-            "Campaign": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "status": {
-                        "type": "string"
-                    },
-                    "campaignType": {
-                        "type": "string"
-                    },
-                    "client_id": {
-                        "type": "string"
-                    },
-                    "company_id": {
-                        "type": "string"
                     }
                 }
             }
-        },
-        "securitySchemes": {
-            "bearerAuth": {
-                "type": "http",
-                "scheme": "bearer"
-            }
         }
-    },
-    "security": [
-        {
-            "bearerAuth": []
-        }
-    ]
+    }
 }

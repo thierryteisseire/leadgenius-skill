@@ -10,25 +10,38 @@ def main():
     parser.add_argument("method", choices=["GET", "POST", "PUT", "DELETE"], help="HTTP method")
     parser.add_argument("endpoint", help="API endpoint (e.g., /leads)")
     parser.add_argument("--data", help="JSON data for POST/PUT requests")
-    parser.add_argument("--base-url", default="https://last.leadgenius.app/api/agent", help="Base URL")
+    parser.add_argument("--base-url", default="http://localhost:3000/api/agent", help="Base URL")
     parser.add_argument("--key", help="API Key (defaults to LGP_API_KEY env var)")
 
     args = parser.parse_args()
 
-    api_key = args.key or os.environ.get("LGP_API_KEY") or os.environ.get("LEADGENIUS_API_KEY")
+    # Authentication resolution order: 
+    # 1. --key argument
+    # 2. LGP_API_KEY environment variable
+    # 3. Saved credentials in ~/.leadgenius_auth.json
+    api_key = args.key or os.environ.get("LGP_API_KEY")
+    
     if not api_key:
-        print("Error: API Key is required. Use --key or set LGP_API_KEY or LEADGENIUS_API_KEY environment variable.")
+        auth_file = os.path.expanduser("~/.leadgenius_auth.json")
+        if os.path.exists(auth_file):
+            try:
+                with open(auth_file, "r") as f:
+                    auth_data = json.load(f)
+                    api_key = auth_data.get("token")
+                    if api_key:
+                        print(f"Using saved credentials for {auth_data.get('email', 'unknown user')}")
+            except Exception as e:
+                print(f"Warning: Failed to read saved credentials: {e}")
+
+    if not api_key:
+        print("Error: API Key is required. Run 'python3 scripts/auth.py' first, use --key, or set LGP_API_KEY.")
         sys.exit(1)
 
     url = f"{args.base_url.rstrip('/')}/{args.endpoint.lstrip('/')}"
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "X-API-Key": api_key,
         "Content-Type": "application/json"
     }
-    
-    company_id = os.environ.get("LGP_COMPANY_ID")
-    if company_id:
-        headers["X-Company-Id"] = company_id
 
     try:
         data = None

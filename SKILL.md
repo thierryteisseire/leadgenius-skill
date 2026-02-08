@@ -3,80 +3,151 @@ name: leadgenius-api
 description: Comprehensive toolset for interacting with LeadGenius Pro Agent APIs. Use for managing ABM campaigns, lead lifecycle, AI enrichment, target accounts, outreach sequences, and system integrations. Supports listing, creating, and updating resources via the LeadGenius RESTful API.
 ---
 
-# LeadGenius Pro Agent API Skill
+# LeadGenius Pro Agent API
 
-This skill allows agents to manage the full lead lifecycle and ABM campaigns in LeadGenius Pro.
-
-## 🏁 Getting Started: Infrastructure Discovery
-
-**CRITICAL**: At the start of any session or when asked to list "leads", "stats", or "clients", you **MUST** run the following command first. The REST API often returns limited data; this script provides the full, aggregated truth:
-
-```bash
-# Recommended First Command
-python3 scripts/rest_lead_stats.py
-```
-
-## ⚠️ Critical: Dashboard Visibility Rules
-
-To ensure resources (campaigns, leads) are visible in the LeadGenius Pro dashboard, you MUST follow these mapping rules:
-
-1. **Client Identification**: 
-   - Use `client_id` (a string identifier like `client_acme_inc`) in both Campaign and Lead creation.
-   - Without a valid `client_id`, items may appear as "Orphaned" or be hidden from specific workspace views.
-
-2. **Lead Naming**:
-   - Always provide `firstName`, `lastName`, `fullName`, and `contactName`.
-   - The UI primarily uses `fullName` and `contactName` for rendering lists. If these are missing, leads might appear empty.
-
-3. **Multi-Tenancy**:
-   - Resources are automatically isolated by the `company_id` associated with your API Key.
-   - If you create resources but can't see them, verify that your API Key was generated within the correct organization context.
+This skill provides a comprehensive interface for interacting with the LeadGenius Pro Agent API.
 
 ## Core Workflows
 
 ### 1. Lead Management
-- **Find Leads**: `GET /leads` (supports `campaignId`, `client_id`, and `email` filters).
-- **Create Leads**: `POST /leads` or `POST /leads/batch`.
-- **Update Status**: `PUT /leads/{id}/status` (Transitions: `new` -> `qualified` -> `contacted` -> `converted`).
+- **Find Leads**: Use `GET /leads` to list contacts.
+- **Enrich Leads**: Use `POST /enrichment/trigger` to start AI augmentation.
+- **Update Status**: Use `PUT /leads/{id}/status` to track progress (New -> Qualified -> Contacted).
+- **Batch Operations**: Create or delete multiple leads simultaneously with `POST /leads/batch` or `DELETE /leads/batch`.
 
 ### 2. Campaign Operations
-- **Launch Campaign**: `POST /campaigns`. Set `status` to `active` immediately if you want it to appear in active lists.
-- **Metrics**: `GET /campaigns/{id}/metrics` to track performance.
+- **Overview**: List all active ABM campaigns with `GET /campaigns`.
+- **Performance**: Monitor ROI with `GET /campaigns/{id}/metrics`.
+- **Creation**: Launch new initiatives with `POST /campaigns`.
 
-### 3. Data Synchronization (Indexing)
-If you notice that `GET /leads` returns fewer results than `rest_lead_stats.py`, the REST search index needs to be synced:
-- **Trigger Sync**: Run `python3 scripts/index_leads.py`. This touches leads via GraphQL to force them into the REST search engine.
+### 3. Targeted ABM
+- **Account Lists**: Manage high-value targets with `GET /target-accounts`.
+- **Scoring**: Update account intent and fit scores with `PUT /target-accounts/{id}/score`.
+
+### 4. Outreach & Engagement
+- **Sequences**: List communication sequences with `GET /sequences`.
+- **Enrollment**: Enroll leads into a specific sequence with `POST /sequences/{id}/enroll`.
+
+### 5. Automation & Workflows
+- **Custom Workflows**: Manage automated processes and agent handoffs with `GET /workflows`.
+- **Status Jobs**: Monitor long-running processes (like enrichment or exports) with `GET /enrichment/status/{jobId}`.
+
+### 6. Analytics & Insights
+- **Pipeline Health**: Total visibility into conversion rates and pipeline velocity with `GET /analytics/pipeline`.
+
+### 7. Ecosystem & Connectivity
+- **Webhooks**: Register listeners for real-time event notifications with `POST /webhooks`.
+- **Integrations**: Manage sync status for external CRMs (HubSpot, Salesforce) with `GET /integrations`.
+
+### 8. Maintenance & Feedback
+- **Bug Reports**: Submit and list bug reports with `GET/POST /maintenance/bugs`.
+- **Enhancement Requests**: Request new features with `GET/POST /maintenance/enhancements`.
+
+### 9. Master Admin (Requires Admin Auth)
+- **Company Management**: List all companies via `GET /admin/companies`.
+- **User Management**: List all users via `GET /admin/users`.
 
 ## Technical Reference
 
 ### Base URL
-Production: `https://last.leadgenius.app/api/agent`
+All requests are relative to: `/api/agent` (e.g. `https://your-domain.com/api/agent/leads`)
 
-### Authentication
-Include your API key in the `Authorization` header. The skill automatically looks for `LEADGENIUS_API_KEY` or `LGP_API_KEY` in the project's `.env` file.
-```http
-Authorization: Bearer lgp_your_secret_key
+### Unified CLI (lgp.py)
+The primary way to interact with LeadGenius is via the `lgp` CLI tool.
+
+#### 1. Setup & Auth
+```bash
+python3 scripts/lgp.py auth --email your@email.com
+```
+
+#### 2. Manage Leads
+```bash
+# List leads
+python3 scripts/lgp.py leads list
+
+# Enrich specific leads
+python3 scripts/lgp.py leads enrich --ids lead_1 lead_2
+```
+
+#### 3. Manage Campaigns
+```bash
+# List active campaigns
+python3 scripts/lgp.py campaigns list
+
+# Create a new campaign
+python3 scripts/lgp.py campaigns create --name "Q3 Expansion"
+```
+
+#### 4. Insights
+```bash
+# Show pipeline health
+python3 scripts/lgp.py pipeline
+```
+
+#### 5. Maintenance & Feedback
+```bash
+# List reported bugs
+python3 scripts/lgp.py maintenance bugs list
+
+# Report a new bug
+python3 scripts/lgp.py maintenance bugs report --desc "Enrichment fails on 500 error" --email "dev@example.com"
+
+# Request an enhancement
+python3 scripts/lgp.py maintenance enhancements request --desc "Add support for Apollo.io"
+```
+
+#### 6. Master Admin (Admin Auth Required)
+```bash
+# List all companies
+python3 scripts/lgp.py admin companies
+
+# List all users
+python3 scripts/lgp.py admin users
 ```
 
 ### Reference Material
-- **OpenAPI Spec**: See [openapi.json](references/openapi.json) for full schema details.
-- **Helper Scripts**: 
-  - [scripts/api_call.py](scripts/api_call.py): General authenticated requests.
-  - [scripts/rest_lead_stats.py](scripts/rest_lead_stats.py): Aggregate leads per client using the REST API (fastest for small/medium datasets).
-  - [scripts/lead_distribution.py](scripts/lead_distribution.py): Aggregate and audit leads per client using GraphQL.
+- **API Reference**: See [api_reference.md](references/api_reference.md) for detailed endpoint descriptions.
+- **OpenAPI Spec**: See [openapi.json](references/openapi.json) for machine-readable schemas.
 
-## Troubleshooting & Tips
+### Helper Scripts
+- **[scripts/lgp.py](scripts/lgp.py)**: Unified CLI for all common operations.
+- **[scripts/api_call.py](scripts/api_call.py)**: Low-level utility for custom raw API requests.
+- **[scripts/auth.py](scripts/auth.py)**: Standalone auth utility.
 
-### Large Datasets
-If a client has a massive number of leads (e.g., >1000), listing leads might require multiple paginated calls. Use the `nextToken` in the API response to scroll through records efficiently.
 
-### Orphaned Leads
-Leads without a `client_id` or `campaignId` are considered "Orphaned". They are still in the system (visible via `GET /leads`) but won't appear in client-specific dashboards. Use `lead_distribution.py` to identify them.
 
-### UI Sync
-After creating leads via the API, the dashboard might take a few seconds to refresh. If leads don't appear, try a hard refresh (Cmd+R) or clear your local cache.
+## Common Payloads
+
+### Create Campaign
+```json
+{
+  "name": "Q1 ABM Tech Giants",
+  "description": "Targeting top 50 tech firms for SaaS expansion",
+  "campaignType": "abm",
+  "status": "active"
+}
+```
+
+### Enrich Leads
+```json
+{
+  "leadIds": ["lead_123", "lead_456"],
+  "enrichmentType": "technographic",
+  "priority": "high"
+}
+```
+
+## Quick Start
+To test your connection:
+1. Set your API Key: `export LGP_API_KEY=lgp_your_key`
+2. Fetch campaigns:
+   ```bash
+   python3 scripts/api_call.py GET /campaigns
+   ```
+
 
 ## Guardrails
-- **Batch Limits**: Max 100 leads per batch request.
-- **Rate Limits**: 60 requests/minute default.
-- **Permission Scopes**: Standard keys have `read` and `write`. `admin` is required for key management.
+- **Rate Limits**: Default limit is 60 requests per minute.
+- **Batching**: Limit batch lead creation to 100 per request.
+- **Permissions**: Ensure your API key has the required scope (Read/Write/Admin).
+
