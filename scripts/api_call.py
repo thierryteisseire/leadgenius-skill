@@ -10,7 +10,7 @@ def main():
     parser.add_argument("method", choices=["GET", "POST", "PUT", "DELETE"], help="HTTP method")
     parser.add_argument("endpoint", help="API endpoint (e.g., /leads)")
     parser.add_argument("--data", help="JSON data for POST/PUT requests")
-    parser.add_argument("--base-url", default="http://localhost:3000/api/agent", help="Base URL")
+    parser.add_argument("--base-url", default="https://last.leadgenius.app/api/agent", help="Base URL")
     parser.add_argument("--key", help="API Key (defaults to LGP_API_KEY env var)")
 
     args = parser.parse_args()
@@ -39,7 +39,7 @@ def main():
 
     url = f"{args.base_url.rstrip('/')}/{args.endpoint.lstrip('/')}"
     headers = {
-        "X-API-Key": api_key,
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
 

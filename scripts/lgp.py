@@ -5,9 +5,9 @@ import os
 import requests
 import sys
 from getpass import getpass
-from datetime import datetime
+from datetime import datetime, timedelta
 
-DEFAULT_BASE_URL = "http://localhost:3000"
+DEFAULT_BASE_URL = "https://last.leadgenius.app"
 AUTH_FILE = os.path.expanduser("~/.leadgenius_auth.json")
 
 class LeadGeniusCLI:
@@ -32,13 +32,16 @@ class LeadGeniusCLI:
                 pass
         return None
 
-    def _request(self, method, endpoint, data=None, params=None):
+    def _request(self, method, endpoint, data=None, params=None, is_admin=False):
         if not self.token:
             print("Error: Not authenticated. Set LGP_API_KEY or run 'lgp auth'.")
             sys.exit(1)
 
-        url = f"{self.base_url}/api/agent/{endpoint.lstrip('/')}"
+        base_path = "/api/admin" if is_admin else "/api/agent"
+        url = f"{self.base_url}/{base_path.strip('/')}/{endpoint.lstrip('/')}"
+        
         headers = {
+            "Authorization": f"Bearer {self.token}",
             "X-API-Key": self.token,
             "Content-Type": "application/json"
         }
@@ -60,7 +63,11 @@ class LeadGeniusCLI:
                 print("Make sure LGP_API_KEY is set to a valid API Key.")
                 return None
             if response.status_code >= 400:
-                print(f"Error ({response.status_code}): {response.text}")
+                # Silently return so the caller can decide what to print or just print error
+                if response.status_code == 403:
+                    print(f"Error (403): Master Admin access required for {url}")
+                else:
+                    print(f"Error ({response.status_code}): {response.text}")
                 return None
             return response.json()
         except Exception as e:
@@ -164,7 +171,12 @@ class LeadGeniusCLI:
     def list_campaigns(self):
         data = self._request("GET", "campaigns")
         if data:
-            for c in data.get("campaigns", []):
+            # Production uses "data" field for lists
+            campaigns = data.get("data")
+            if campaigns is None: # Fallback for local/legacy if applicable
+                campaigns = data.get("campaigns", [])
+            
+            for c in campaigns:
                 print(f"[{c.get('id')}] {c.get('name')} ({c.get('status')})")
 
     def create_campaign(self, name, type="abm"):
@@ -174,7 +186,7 @@ class LeadGeniusCLI:
             print(f"Campaign created: {data.get('id')}")
 
     # Analytics
-    def show_pipeline(self, start_date=None, end_date=None):
+    def show_pipeline(self, start_date, end_date):
         params = {"startDate": start_date, "endDate": end_date}
         data = self._request("GET", "analytics/pipeline", params=params)
         if data:
@@ -208,36 +220,17 @@ class LeadGeniusCLI:
              enh = data.get('enhancement', {})
              print(f"Enhancement requested: ID {enh.get('id')}")
     
-    # Admin
+    # Admin (Master Admin Only)
     def list_all_companies(self):
-         # Admin endpoint call attempt
-        print("Warning: Admin endpoints require session cookies. This might fail with API Key.")
-        url = f"{self.base_url}/api/admin/companies"
-        headers = {
-            "Content-Type": "application/json",
-             # Try passing API Key anyway, maybe backend changes later
-            "X-API-Key": self.token
-        }
-        try:
-             response = requests.get(url, headers=headers)
-             print(f"Status: {response.status_code}")
-             print(response.text)
-        except Exception as e:
-            print(f"Error: {e}")
+        data = self._request("GET", "companies", is_admin=True)
+        if data:
+            print(json.dumps(data, indent=2))
 
     def list_all_users(self):
-        print("Warning: Admin endpoints require session cookies. This might fail with API Key.")
-        url = f"{self.base_url}/api/admin/users"
-        headers = {
-            "Content-Type": "application/json",
-            "X-API-Key": self.token
-        }
-        try:
-             response = requests.get(url, headers=headers)
-             print(f"Status: {response.status_code}")
-             print(response.text)
-        except Exception as e:
-            print(f"Error: {e}")
+        data = self._request("GET", "users", is_admin=True)
+        if data:
+            print(json.dumps(data, indent=2))
+
 
 def main():
     parser = argparse.ArgumentParser(description="LeadGenius Pro Agent CLI")

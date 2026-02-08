@@ -46,7 +46,7 @@ This skill provides a comprehensive interface for interacting with the LeadGeniu
 ## Technical Reference
 
 ### Base URL
-All requests are relative to: `/api/agent` (e.g. `https://your-domain.com/api/agent/leads`)
+All requests are relative to: `/api/agent` (e.g. `https://last.leadgenius.app/api/agent/leads`)
 
 ### Unified CLI (lgp.py)
 The primary way to interact with LeadGenius is via the `lgp` CLI tool.

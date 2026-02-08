@@ -3,7 +3,7 @@
 This document provides a detailed breakdown of all available endpoints in the LeadGenius Pro Agent API.
 
 ## Base URL
-`https://your-domain.com/api/agent`
+`https://last.leadgenius.app/api/agent`
 
 ## Authentication
 All requests require an API key passed in headers:
