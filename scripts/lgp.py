@@ -80,17 +80,28 @@ class LeadGeniusCLI:
         email = email or input("Email: ")
         password = password or getpass("Password: ")
         
-        url = f"{self.base_url}/api/epsimo-auth"
+        url = f"{self.base_url}/api/auth"
         try:
-            response = requests.post(url, json={"email": email, "password": password})
+            response = requests.post(url, json={"username": email, "password": password})
             if response.status_code == 200:
                 data = response.json()
-                jwt_token = data.get("jwt_token")
-                # Save JWT logic...
-                # But wait, we want to encourage API Keys.
-                # We save JWT strictly to allow `generate-key` to work next.
+                tokens = data.get("tokens", {})
+                jwt_token = tokens.get("accessToken")
+                refresh_token = tokens.get("refreshToken")
+                
+                if not jwt_token:
+                    print("Error: Auth succeeded but no accessToken found.")
+                    return
+
+                # Save JWT (and refresh token)
+                # We save JWT strictly to allow `generate-key` to work next, or as fallback.
                 with open(AUTH_FILE, "w") as f:
-                    json.dump({"token": jwt_token, "email": email, "base_url": self.base_url}, f)
+                    json.dump({
+                        "token": jwt_token, 
+                        "refresh_token": refresh_token,
+                        "email": email, 
+                        "base_url": self.base_url
+                    }, f)
                 print(f"Successfully authenticated as {email}")
                 print("IMPORTANT: Most commands now require an API Key.")
                 print("Run 'lgp generate-key' to create one.")

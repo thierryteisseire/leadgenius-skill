@@ -1,6 +1,6 @@
 {
     "name": "@thierryteisseire/leadgenius-skill",
-    "version": "1.1.4",
+    "version": "1.1.5",
     "description": "LeadGenius Pro Agent API Skill for AI agents",
     "main": "SKILL.md",
     "repository": {

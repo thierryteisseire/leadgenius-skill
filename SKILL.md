@@ -57,8 +57,8 @@ The primary way to interact with LeadGenius is via the `lgp` CLI tool.
 
 #### 1. Setup & Auth
 Authentication is a two-step process:
-1. **Login**: Authenticate with your email and password to get a temporary session.
-2. **Generate Key**: Create a long-lived API Key (`lgp_...`) for your scripts/agent.
+1. **Login**: Authenticate with your email and password to get a temporary session (JWTokens are stored).
+2. **Generate Key**: Create a long-lived API Key (`lgp_...`) for your scripts/agent using the session.
 
 ```bash
 # 1. Login to get session (email/password)

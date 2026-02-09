@@ -21,20 +21,22 @@ def main():
     email = args.email or input("Email: ")
     password = args.password or getpass("Password: ")
 
-    url = f"{args.base_url.rstrip('/')}/api/epsimo-auth"
+    url = f"{args.base_url.rstrip('/')}/api/auth"
     
     print(f"Authenticating with {url}...")
     
     try:
         response = requests.post(
             url,
-            json={"email": email, "password": password},
+            json={"username": email, "password": password},
             headers={"Content-Type": "application/json"}
         )
         
         if response.status_code == 200:
             data = response.json()
-            token = data.get("jwt_token")
+            tokens = data.get("tokens", {})
+            token = tokens.get("accessToken")
+            refresh_token = tokens.get("refreshToken")
             
             if not token:
                 print("Error: Authentication succeeded but no token was returned.")
@@ -45,6 +47,7 @@ def main():
             if args.save:
                 auth_data = {
                     "token": token,
+                    "refresh_token": refresh_token,
                     "email": email,
                     "base_url": args.base_url
                 }
