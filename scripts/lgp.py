@@ -172,8 +172,26 @@ class LeadGeniusCLI:
             if not leads:
                 print("No leads found matching criteria.")
                 return
-            print(f"Found {len(leads)} lead(s):\n")
+
+            # Client-side filtering (polyfill for server limitation)
+            filtered_leads = []
             for lead in leads:
+                match = True
+                if first_name and first_name.lower() not in (lead.get('firstName') or '').lower(): match = False
+                if last_name and last_name.lower() not in (lead.get('lastName') or '').lower(): match = False
+                if full_name and full_name.lower() not in (lead.get('fullName') or '').lower(): match = False
+                if email and email.lower() not in (lead.get('email') or '').lower(): match = False
+                if company and company.lower() not in (lead.get('companyName') or '').lower(): match = False
+                
+                if match:
+                    filtered_leads.append(lead)
+
+            if not filtered_leads:
+                print("No leads found matching criteria (checked 100 most recent).")
+                return
+
+            print(f"Found {len(filtered_leads)} lead(s):\n")
+            for lead in filtered_leads:
                 print(f"  ID:       {lead.get('id')}")
                 print(f"  Name:     {lead.get('fullName') or lead.get('contactName', 'N/A')}")
                 print(f"  Title:    {lead.get('title', 'N/A')}")
