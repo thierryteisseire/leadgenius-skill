@@ -6,7 +6,7 @@ import requests
 import sys
 from getpass import getpass
 
-DEFAULT_BASE_URL = "https://last.leadgenius.app"
+DEFAULT_BASE_URL = "http://localhost:3000"
 AUTH_FILE = os.path.expanduser("~/.leadgenius_auth.json")
 
 def main():

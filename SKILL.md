@@ -65,6 +65,9 @@ python3 scripts/lgp.py auth --email your@email.com
 # List leads
 python3 scripts/lgp.py leads list
 
+# Find specific leads
+python3 scripts/lgp.py leads find --full-name "Hugo Sanchez"
+
 # Enrich specific leads
 python3 scripts/lgp.py leads enrich --ids lead_1 lead_2
 ```

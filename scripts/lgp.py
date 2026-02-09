@@ -5,9 +5,9 @@ import os
 import requests
 import sys
 from getpass import getpass
-from datetime import datetime, timedelta
+from datetime import datetime
 
-DEFAULT_BASE_URL = "https://last.leadgenius.app"
+DEFAULT_BASE_URL = "http://localhost:3000"
 AUTH_FILE = os.path.expanduser("~/.leadgenius_auth.json")
 
 class LeadGeniusCLI:
@@ -32,16 +32,13 @@ class LeadGeniusCLI:
                 pass
         return None
 
-    def _request(self, method, endpoint, data=None, params=None, is_admin=False):
+    def _request(self, method, endpoint, data=None, params=None):
         if not self.token:
             print("Error: Not authenticated. Set LGP_API_KEY or run 'lgp auth'.")
             sys.exit(1)
 
-        base_path = "/api/admin" if is_admin else "/api/agent"
-        url = f"{self.base_url}/{base_path.strip('/')}/{endpoint.lstrip('/')}"
-        
+        url = f"{self.base_url}/api/agent/{endpoint.lstrip('/')}"
         headers = {
-            "Authorization": f"Bearer {self.token}",
             "X-API-Key": self.token,
             "Content-Type": "application/json"
         }
@@ -63,11 +60,7 @@ class LeadGeniusCLI:
                 print("Make sure LGP_API_KEY is set to a valid API Key.")
                 return None
             if response.status_code >= 400:
-                # Silently return so the caller can decide what to print or just print error
-                if response.status_code == 403:
-                    print(f"Error (403): Master Admin access required for {url}")
-                else:
-                    print(f"Error ({response.status_code}): {response.text}")
+                print(f"Error ({response.status_code}): {response.text}")
                 return None
             return response.json()
         except Exception as e:
@@ -161,6 +154,36 @@ class LeadGeniusCLI:
         if data:
             print(json.dumps(data, indent=2))
 
+    def find_lead(self, first_name=None, last_name=None, full_name=None, email=None, company=None):
+        params = {"pageSize": 100}
+        if first_name:
+            params["firstName"] = first_name
+        if last_name:
+            params["lastName"] = last_name
+        if full_name:
+            params["fullName"] = full_name
+        if email:
+            params["email"] = email
+        if company:
+            params["companyName"] = company
+        data = self._request("GET", "leads", params=params)
+        if data:
+            leads = data.get("data", [])
+            if not leads:
+                print("No leads found matching criteria.")
+                return
+            print(f"Found {len(leads)} lead(s):\n")
+            for lead in leads:
+                print(f"  ID:       {lead.get('id')}")
+                print(f"  Name:     {lead.get('fullName') or lead.get('contactName', 'N/A')}")
+                print(f"  Title:    {lead.get('title', 'N/A')}")
+                print(f"  Company:  {lead.get('companyName', 'N/A')}")
+                print(f"  Email:    {lead.get('email', 'N/A')}")
+                print(f"  LinkedIn: {lead.get('linkedinUrl', 'N/A')}")
+                print(f"  Location: {lead.get('city', 'N/A')}, {lead.get('country', 'N/A')}")
+                print(f"  Status:   {lead.get('status', 'N/A')}")
+                print()
+
     def enrich_leads(self, lead_ids, type="technographic"):
         payload = {"leadIds": lead_ids, "enrichmentType": type}
         data = self._request("POST", "enrichment/trigger", data=payload)
@@ -171,12 +194,7 @@ class LeadGeniusCLI:
     def list_campaigns(self):
         data = self._request("GET", "campaigns")
         if data:
-            # Production uses "data" field for lists
-            campaigns = data.get("data")
-            if campaigns is None: # Fallback for local/legacy if applicable
-                campaigns = data.get("campaigns", [])
-            
-            for c in campaigns:
+            for c in data.get("campaigns", []):
                 print(f"[{c.get('id')}] {c.get('name')} ({c.get('status')})")
 
     def create_campaign(self, name, type="abm"):
@@ -186,7 +204,7 @@ class LeadGeniusCLI:
             print(f"Campaign created: {data.get('id')}")
 
     # Analytics
-    def show_pipeline(self, start_date, end_date):
+    def show_pipeline(self, start_date=None, end_date=None):
         params = {"startDate": start_date, "endDate": end_date}
         data = self._request("GET", "analytics/pipeline", params=params)
         if data:
@@ -220,17 +238,36 @@ class LeadGeniusCLI:
              enh = data.get('enhancement', {})
              print(f"Enhancement requested: ID {enh.get('id')}")
     
-    # Admin (Master Admin Only)
+    # Admin
     def list_all_companies(self):
-        data = self._request("GET", "companies", is_admin=True)
-        if data:
-            print(json.dumps(data, indent=2))
+         # Admin endpoint call attempt
+        print("Warning: Admin endpoints require session cookies. This might fail with API Key.")
+        url = f"{self.base_url}/api/admin/companies"
+        headers = {
+            "Content-Type": "application/json",
+             # Try passing API Key anyway, maybe backend changes later
+            "X-API-Key": self.token
+        }
+        try:
+             response = requests.get(url, headers=headers)
+             print(f"Status: {response.status_code}")
+             print(response.text)
+        except Exception as e:
+            print(f"Error: {e}")
 
     def list_all_users(self):
-        data = self._request("GET", "users", is_admin=True)
-        if data:
-            print(json.dumps(data, indent=2))
-
+        print("Warning: Admin endpoints require session cookies. This might fail with API Key.")
+        url = f"{self.base_url}/api/admin/users"
+        headers = {
+            "Content-Type": "application/json",
+            "X-API-Key": self.token
+        }
+        try:
+             response = requests.get(url, headers=headers)
+             print(f"Status: {response.status_code}")
+             print(response.text)
+        except Exception as e:
+            print(f"Error: {e}")
 
 def main():
     parser = argparse.ArgumentParser(description="LeadGenius Pro Agent CLI")
@@ -248,8 +285,13 @@ def main():
 
     # Leads
     leads_parser = subparsers.add_parser("leads", help="Manage leads")
-    leads_parser.add_argument("action", choices=["list", "enrich"])
+    leads_parser.add_argument("action", choices=["list", "find", "enrich"])
     leads_parser.add_argument("--ids", nargs="+", help="Lead IDs for enrichment")
+    leads_parser.add_argument("--first-name", help="First name filter (for find)")
+    leads_parser.add_argument("--last-name", help="Last name filter (for find)")
+    leads_parser.add_argument("--full-name", help="Full name search (for find)")
+    leads_parser.add_argument("--email", help="Email filter (for find)")
+    leads_parser.add_argument("--company", help="Company name filter (for find)")
 
     # Campaigns
     camp_parser = subparsers.add_parser("campaigns", help="Manage campaigns")
@@ -291,6 +333,17 @@ def main():
     elif args.command == "leads":
         if args.action == "list":
             cli.list_leads()
+        elif args.action == "find":
+            if not any([args.first_name, args.last_name, args.full_name, args.email, args.company]):
+                print("Error: provide at least one filter: --first-name, --last-name, --full-name, --email, or --company")
+                return
+            cli.find_lead(
+                first_name=args.first_name,
+                last_name=args.last_name,
+                full_name=args.full_name,
+                email=args.email,
+                company=args.company,
+            )
         elif args.action == "enrich":
             if not args.ids:
                 print("Error: --ids required for enrichment")

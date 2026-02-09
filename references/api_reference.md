@@ -3,7 +3,7 @@
 This document provides a detailed breakdown of all available endpoints in the LeadGenius Pro Agent API.
 
 ## Base URL
-`https://last.leadgenius.app/api/agent`
+`https://your-domain.com/api/agent`
 
 ## Authentication
 All requests require an API key passed in headers:
@@ -41,7 +41,7 @@ Lifecycle management for marketing and sales leads.
 
 ### `GET /leads`
 List leads with advanced filtering.
-- **Filters**: `status`, `campaignId`, `email`, `companyName`.
+- **Filters**: `status`, `campaignId`, `email`, `companyName`, `firstName`, `lastName`, `fullName`.
 - **Pagination**: `page`, `pageSize` (Default 20, Max 100).
 
 ### `POST /leads`
@@ -120,50 +120,3 @@ Manage connections to CRMs (Salesforce, HubSpot) and Mail Platforms.
 
 ### `GET /webhooks`
 Configure event-based real-time notifications.
-
----
-
-## 🛠️ Maintenance & System Health
-Endpoints for reporting issues and providing feedback.
-
-### `GET /maintenance/bugs`
-List reported bugs.
-
-### `POST /maintenance/bugs`
-Report a discovered issue.
-- **Body**: `{ description, userEmail }`
-
-### `GET /maintenance/enhancements`
-List requested enhancements.
-
-### `POST /maintenance/enhancements`
-Request a new feature.
-- **Body**: `{ description, userEmail }`
-
----
-
-## 👑 Global Administration (Admin Only)
-High-level system management. Requires Master Admin status.
-Root Path: `/api/admin`
-
-### `GET /companies`
-List all organizations currently using the platform.
-
-### `GET /users`
-Get the global directory of all platform users and their roles.
-
----
-
-## 🔑 Authentication & API Keys
-### `POST /epsimo-auth`
-Exchange email/password for a JWT token.
-- **Root Path**: `/api/epsimo-auth`
-- **Body**: `{ email, password }`
-
-### `POST /agent-api-keys`
-Generate a new persistent API Key.
-- **Auth**: Requires JWT (Bearer)
-- **Body**: `{ name, description }`
-
-### `GET /agent-api-keys`
-List active API keys for the current user.
