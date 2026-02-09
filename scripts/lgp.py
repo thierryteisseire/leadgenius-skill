@@ -7,12 +7,21 @@ import sys
 from getpass import getpass
 from datetime import datetime
 
-DEFAULT_BASE_URL = "http://localhost:3000"
+DEFAULT_BASE_URL = "https://last.leadgenius.app"
 AUTH_FILE = os.path.expanduser("~/.leadgenius_auth.json")
 
 class LeadGeniusCLI:
     def __init__(self, base_url=None):
-        self.base_url = (base_url or DEFAULT_BASE_URL).rstrip('/')
+        auth_base_url = None
+        if os.path.exists(AUTH_FILE):
+            try:
+                with open(AUTH_FILE, "r") as f:
+                    data = json.load(f)
+                    auth_base_url = data.get("base_url")
+            except:
+                pass
+
+        self.base_url = (base_url or auth_base_url or DEFAULT_BASE_URL).rstrip('/')
         self.token = self._load_token()
 
     def _load_token(self):

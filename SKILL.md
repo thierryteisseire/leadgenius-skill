@@ -56,9 +56,19 @@ The API uses separate root paths depending on the operation scope. Standard agen
 The primary way to interact with LeadGenius is via the `lgp` CLI tool.
 
 #### 1. Setup & Auth
+Authentication is a two-step process:
+1. **Login**: Authenticate with your email and password to get a temporary session.
+2. **Generate Key**: Create a long-lived API Key (`lgp_...`) for your scripts/agent.
+
 ```bash
+# 1. Login to get session (email/password)
 python3 scripts/lgp.py auth --email your@email.com
+
+# 2. Generate an API Key (this will be automatically saved)
+python3 scripts/lgp.py generate-key --name "Production Agent"
 ```
+
+Once generated, the key is saved to `~/.leadgenius_auth.json` and will be automatically used by the CLI. You can also explicitly set it via `LGP_API_KEY` environment variable.
 
 #### 2. Manage Leads
 ```bash
@@ -98,13 +108,7 @@ python3 scripts/lgp.py maintenance enhancements list
 python3 scripts/lgp.py maintenance enhancements request --desc "Add support for Google Maps leads"
 ```
 
-#### 6. API Key Generation
-```bash
-# Generate a new API Key (Requires active session)
-python3 scripts/lgp.py generate-key --name "Production Agent" --desc "Key for main auto-agent"
-```
-
-#### 7. Global Administration (Admin Only)
+#### 6. Global Administration (Admin Only)
 ```bash
 # View system-wide data
 python3 scripts/lgp.py admin companies
@@ -143,13 +147,7 @@ python3 scripts/lgp.py admin users
 }
 ```
 
-## Quick Start
-To test your connection:
-1. Set your API Key: `export LGP_API_KEY=lgp_your_key`
-2. Fetch campaigns:
-   ```bash
-   python3 scripts/api_call.py GET /campaigns
-   ```
+
 
 
 ## Data Architecture & Logic
