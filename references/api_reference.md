@@ -10,6 +10,11 @@ All requests require an API key passed in headers:
 - `X-API-Key: lgp_...`
 - OR `Authorization: Bearer lgp_...`
 
+**Global Throttles**:
+- 60 requests/minute
+- 1,000 requests/hour
+- 10,000 requests/day
+
 ---
 
 ## 📊 Campaigns
@@ -17,7 +22,7 @@ Manage ABM campaigns and track performance.
 
 ### `GET /campaigns`
 List all campaigns.
-- **Query Params**: `page`, `pageSize`, `status`, `campaignType`.
+- **Query Params**: `page`, `pageSize` (Max 100), `status`, `campaignType`.
 
 ### `POST /campaigns`
 Create a new campaign.
@@ -37,6 +42,7 @@ Lifecycle management for marketing and sales leads.
 ### `GET /leads`
 List leads with advanced filtering.
 - **Filters**: `status`, `campaignId`, `email`, `companyName`.
+- **Pagination**: `page`, `pageSize` (Default 20, Max 100).
 
 ### `POST /leads`
 Create a single lead.
@@ -47,6 +53,25 @@ Create up to 100 leads in a single request.
 
 ### `PUT /leads/{id}/status`
 Transition a lead status (e.g., `new` -> `qualified`).
+
+---
+
+## 📋 Bulk Lead Listing (External Access)
+Direct lead listing endpoints using Amplify API key auth. Use these for high-volume data retrieval without Cognito sessions.
+
+**Base URL:** `https://your-domain.com/api` (not `/api/agent`)
+
+**Authentication:** `x-api-key` header with the Amplify API key (from `amplify_outputs.json`).
+
+### `GET /enrich-leads/list`
+Bulk list enriched leads by company.
+- **Required**: `companyId` — company_id for multi-tenant isolation.
+- **Optional**: `clientId`, `limit` (default 1000, max 5000), `nextToken`, `fields` (comma-separated).
+- **Query Strategy**: Uses `company_id` GSI or `client_id` GSI + company filter.
+- **Response**: `{ success, data, nextToken, meta: { totalReturned, queryMethod, clientSummary, ... } }`
+
+### `GET /source-leads/list`
+Bulk list source leads by company. Same parameters and response shape as `/enrich-leads/list`.
 
 ---
 

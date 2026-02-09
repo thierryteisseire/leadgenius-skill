@@ -10,8 +10,8 @@ This skill provides a comprehensive interface for interacting with the LeadGeniu
 ## Core Workflows
 
 ### 1. Lead Management
-- **Find Leads**: Use `GET /leads` to list contacts.
-- **Enrich Leads**: Use `POST /enrichment/trigger` to start AI augmentation.
+- **Bulk List (EnrichLeads)**: Use `GET /enrich-leads/list` for high-volume data extraction from the enriched leads table (requires Amplify API key).
+- **Bulk List (SourceLeads)**: Use `GET /source-leads/list` for raw source data extraction (requires Amplify API key).
 - **Update Status**: Use `PUT /leads/{id}/status` to track progress (New -> Qualified -> Contacted).
 - **Batch Operations**: Create or delete multiple leads simultaneously with `POST /leads/batch` or `DELETE /leads/batch`.
 
@@ -45,11 +45,12 @@ This skill provides a comprehensive interface for interacting with the LeadGeniu
 
 ## Technical Reference
 
-### Base URL
-The API uses separate root paths for different scopes:
-- **Agent Scope (Default)**: `/api/agent` (e.g. `https://last.leadgenius.app/api/agent/leads`) 
-- **Admin Scope**: `/api/admin` (e.g. `.../api/admin/companies`)
-- **System Scope**: `/api` (e.g. `.../api/epsimo-auth`)
+### Base URLs
+The API uses separate root paths depending on the operation scope. Standard agent interaction occurs via the **Agent Scope**, while high-volume extraction uses the **System Scope**.
+
+1. **Agent API Operations**: `/api/agent` (e.g., `https://last.leadgenius.app/api/agent/leads`). Requires `X-API-Key` (lgp_...).
+2. **Bulk Data Extraction (System Scope)**: `/api` (e.g., `https://last.leadgenius.app/api/enrich-leads/list`). Requires `x-api-key` (Amplify API key).
+3. **Admin Scope**: `/api/admin` (e.g., `.../api/admin/companies`).
 
 ### Unified CLI (lgp.py)
 The primary way to interact with LeadGenius is via the `lgp` CLI tool.
@@ -148,8 +149,29 @@ To test your connection:
    ```
 
 
-## Guardrails
-- **Rate Limits**: Default limit is 60 requests per minute.
-- **Batching**: Limit batch lead creation to 100 per request.
-- **Permissions**: Ensure your API key has the required scope (Read/Write/Admin).
+## Data Architecture & Logic
+### 1. Multi-Tenant Isolation
+All data is strictly isolated by `company_id`. Even though agents use their own API keys, the system enforces that they only see leads associated with their assigned `company_id`.
+
+### 2. Search Logic (LeadService)
+The standard lead listing (`GET /leads`) uses a dual-query strategy to ensure no leads are missed:
+- **By Company**: Queries the `company_id-GSI` to find all company-level leads.
+- **By Owner**: Queries the `owner-GSI` to find leads specifically created by/assigned to the agent.
+- **Merging**: Results are deduplicated and merged to provide a unified view.
+
+### 3. Bulk Data Access
+High-volume extraction (`GET /enrich-leads/list`) bypasses standard CRM logic in favor of raw GSI performance, requiring an explicit `companyId` parameter and matching Amplify API key.
+
+### 4. Guardrails & Limits
+- **Rate Limits**: 
+  - **Minute**: 60 requests.
+  - **Hour**: 1,000 requests.
+  - **Day**: 10,000 requests.
+- **Batching**: 
+  - **Lead Creation**: Max 100 leads per request.
+  - **Enrichment Trigger**: Max 500 leads per request.
+- **Pagination**:
+  - **Standard API**: Default 20, Max 100 per page.
+  - **Bulk API**: Default 1,000, Max 5,000 per page.
+- **Search Depth**: LeadService scans up to 1,000 records per GSI before in-memory merging.
 
