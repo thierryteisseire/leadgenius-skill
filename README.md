@@ -31,7 +31,9 @@ npx skills add https://github.com/thierryteisseire/leadgenius-skill
 
 To use this skill, you need a LeadGenius Pro API Key.
 - Base URL: `/api/agent`
-- Headers: `X-API-Key: lgp_your_key`
+- Headers: 
+  - `X-API-Key: lgp_your_key`
+  - `X-User-Id: your_user_id`
 
 ## ⚖️ License
 MIT License. See [LICENSE.txt](LICENSE.txt) for details.

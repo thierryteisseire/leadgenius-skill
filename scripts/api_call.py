@@ -20,6 +20,7 @@ def main():
     # 2. LGP_API_KEY environment variable
     # 3. Saved credentials in ~/.leadgenius_auth.json
     api_key = args.key or os.environ.get("LGP_API_KEY")
+    user_id = os.environ.get("LGP_USER_ID")
     
     if not api_key:
         auth_file = os.path.expanduser("~/.leadgenius_auth.json")
@@ -27,7 +28,13 @@ def main():
             try:
                 with open(auth_file, "r") as f:
                     auth_data = json.load(f)
-                    api_key = auth_data.get("token")
+                    # Prefer API Key if stored
+                    api_key = auth_data.get("api_key") or auth_data.get("token")
+                    
+                    # Also load user_id if not in env
+                    if not user_id:
+                        user_id = auth_data.get("user_id")
+                        
                     if api_key:
                         print(f"Using saved credentials for {auth_data.get('email', 'unknown user')}")
             except Exception as e:
@@ -38,10 +45,18 @@ def main():
         sys.exit(1)
 
     url = f"{args.base_url.rstrip('/')}/{args.endpoint.lstrip('/')}"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
+    headers = { "Content-Type": "application/json" }
+    
+    # Check if it looks like an API Key (lgp_...)
+    if api_key.startswith("lgp_"):
+        if not user_id:
+             print("Error: API Key requires user_id. Please re-authenticate or manually add 'user_id' to ~/.leadgenius_auth.json")
+             sys.exit(1)
+        headers["x-api-key"] = api_key
+        headers["x-user-id"] = user_id
+    else:
+        # Fallback for JWT
+        headers["Authorization"] = f"Bearer {api_key}"
 
     try:
         data = None

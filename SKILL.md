@@ -69,6 +69,7 @@ Tokens are saved to `~/.leadgenius_auth.json` by the auth scripts:
   "id_token": "<idToken>",
   "refresh_token": "<refreshToken>",
   "email": "your@email.com",
+  "user_id": "<uuid-user-id>",
   "base_url": "https://last.leadgenius.app"
 }
 ```

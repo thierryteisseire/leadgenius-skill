@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import base64
 import json
 import os
 import requests
@@ -13,24 +14,36 @@ AUTH_FILE = os.path.expanduser("~/.leadgenius_auth.json")
 class LeadGeniusCLI:
     def __init__(self, base_url=None):
         self.base_url = (base_url or DEFAULT_BASE_URL).rstrip('/')
-        self.token = self._load_token()
+        self.token, self.user_id = self._load_auth()
 
-    def _load_token(self):
-        # 1. Prefer Environment Variable (API Key)
+    def _load_auth(self):
+        # 1. Prefer Environment Variable
         api_key = os.environ.get("LGP_API_KEY")
+        user_id = os.environ.get("LGP_USER_ID")
+        
         if api_key:
-            return api_key
+            # Try to load user_id from file if not in env
+            if not user_id and os.path.exists(AUTH_FILE):
+                 try:
+                    with open(AUTH_FILE, "r") as f:
+                        data = json.load(f)
+                        user_id = data.get("user_id")
+                 except:
+                     pass
+            return api_key, user_id
             
         # 2. Check Auth File
         if os.path.exists(AUTH_FILE):
             try:
                 with open(AUTH_FILE, "r") as f:
                     data = json.load(f)
-                    # Prefer API Key if stored (future proofing), else JWT
-                    return data.get("api_key") or data.get("token")
+                    # Prefer API Key if stored
+                    token = data.get("api_key") or data.get("token")
+                    uid = data.get("user_id")
+                    return token, uid
             except:
                 pass
-        return None
+        return None, None
 
     def _request(self, method, endpoint, data=None, params=None):
         if not self.token:
@@ -38,10 +51,19 @@ class LeadGeniusCLI:
             sys.exit(1)
 
         url = f"{self.base_url}/api/{endpoint.lstrip('/')}"
-        headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/json"
-        }
+        
+        headers = { "Content-Type": "application/json" }
+        
+        # New Logic: Check for API Key format
+        if self.token and self.token.startswith("lgp_"):
+            if not self.user_id:
+                print("Error: API Key requires user_id. Please re-authenticate or manually add 'user_id' to ~/.leadgenius_auth.json")
+                sys.exit(1)
+            headers["x-api-key"] = self.token
+            headers["x-user-id"] = self.user_id
+        else:
+            # Fallback for JWT
+            headers["Authorization"] = f"Bearer {self.token}"
 
         # If token is JWT (long), it might need different handling if backend strict about X-API-Key vs Bearer
         # Current backend implementation expects X-API-Key to be the API Key (lgp_...).
@@ -78,10 +100,34 @@ class LeadGeniusCLI:
                 data = response.json()
                 tokens = data.get("tokens", {})
                 jwt_token = tokens.get("accessToken") or data.get("jwt_token")
-                # But wait, we want to encourage API Keys.
-                # We save JWT strictly to allow `generate-key` to work next.
+                
+                user_id = data.get("user", {}).get("id") or data.get("userId")
+                
+                if not user_id and jwt_token:
+                    try:
+                        # JWT is header.payload.signature
+                        parts = jwt_token.split('.')
+                        if len(parts) >= 2:
+                            payload = parts[1]
+                            payload += '=' * (-len(payload) % 4)
+                            decoded = base64.urlsafe_b64decode(payload)
+                            jwt_data = json.loads(decoded)
+                            user_id = jwt_data.get('sub') or jwt_data.get('id') or jwt_data.get('user_id')
+                    except Exception as e:
+                        print(f"Warning: Failed to decode JWT: {e}")
+
+                auth_data = {
+                    "token": jwt_token,
+                    "email": email, 
+                    "base_url": self.base_url
+                }
+                if user_id:
+                    auth_data["user_id"] = user_id
+                    print(f"User ID: {user_id}")
+                    
                 with open(AUTH_FILE, "w") as f:
-                    json.dump({"token": jwt_token, "email": email, "base_url": self.base_url}, f)
+                    json.dump(auth_data, f, indent=2)
+                    
                 print(f"Successfully authenticated as {email}")
                 print("IMPORTANT: Most commands now require an API Key.")
                 print("Run 'lgp generate-key' to create one.")
@@ -94,11 +140,13 @@ class LeadGeniusCLI:
         # This requires JWT token (from auth), not API Key.
         # We need to manually load JWT from file because self.token might be empty or API Key.
         jwt_token = None
+        user_id = None
         if os.path.exists(AUTH_FILE):
              try:
                 with open(AUTH_FILE, "r") as f:
                     data = json.load(f)
                     jwt_token = data.get("token")
+                    user_id = data.get("user_id")
              except:
                  pass
         
@@ -125,6 +173,8 @@ class LeadGeniusCLI:
                 print(f"Key: {api_key}")
                 print("\nTo use this key:")
                 print(f"export LGP_API_KEY={api_key}")
+                if user_id:
+                    print(f"export LGP_USER_ID={user_id}")
                 print("\n(You should save this key securely, it will not be shown again)")
                 
                 # Optional: Save to file for convenience?

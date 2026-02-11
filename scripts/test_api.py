@@ -145,6 +145,23 @@ def test_auth(base_url, username, password):
     info(f"Token expires in: {tokens.get('expiresIn', '?')}s")
     info(f"Access token length: {len(access_token) if access_token else 0} chars")
     
+    # Extract user_id
+    user_id = body.get("user", {}).get("id") or body.get("userId")
+    
+    if not user_id and access_token:
+        try:
+            # JWT is header.payload.signature
+            parts = access_token.split('.')
+            if len(parts) >= 2:
+                payload = parts[1]
+                payload += '=' * (-len(payload) % 4)
+                import base64
+                decoded = base64.urlsafe_b64decode(payload)
+                jwt_data = json.loads(decoded)
+                user_id = jwt_data.get('sub') or jwt_data.get('id') or jwt_data.get('user_id')
+        except Exception as e:
+            warn(f"Failed to decode JWT: {e}")
+
     # Save tokens for future use
     auth_data = {
         "token": access_token,
@@ -153,6 +170,10 @@ def test_auth(base_url, username, password):
         "email": username,
         "base_url": base_url,
     }
+    if user_id:
+        auth_data["user_id"] = user_id
+        info(f"User ID: {user_id}")
+        
     with open(AUTH_FILE, "w") as f:
         json.dump(auth_data, f, indent=2)
     info(f"Tokens saved to {AUTH_FILE}")

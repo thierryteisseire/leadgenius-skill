@@ -40,8 +40,29 @@ def main():
             if not token:
                 print("Error: Authentication succeeded but no token was returned.")
                 sys.exit(1)
-                
+            
+            # Extract user_id
+            user_id = data.get("user", {}).get("id") or data.get("userId")
+            
+            # Fallback: Try decoding JWT
+            if not user_id and token:
+                try:
+                    import base64
+                    # JWT is header.payload.signature
+                    parts = token.split('.')
+                    if len(parts) >= 2:
+                        payload = parts[1]
+                        # Pad base64
+                        payload += '=' * (-len(payload) % 4)
+                        decoded = base64.urlsafe_b64decode(payload)
+                        jwt_data = json.loads(decoded)
+                        user_id = jwt_data.get('sub') or jwt_data.get('id') or jwt_data.get('user_id')
+                except Exception as e:
+                    print(f"Warning: Failed to decode JWT for user_id: {e}")
+
             print("Successfully authenticated!")
+            if user_id:
+                print(f"User ID: {user_id}")
             
             if args.save:
                 auth_data = {
@@ -49,6 +70,9 @@ def main():
                     "email": email,
                     "base_url": args.base_url
                 }
+                if user_id:
+                    auth_data["user_id"] = user_id
+                    
                 with open(AUTH_FILE, "w") as f:
                     json.dump(auth_data, f, indent=2)
                 print(f"Credentials saved to {AUTH_FILE}")
