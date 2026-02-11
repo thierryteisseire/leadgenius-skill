@@ -1,8 +1,19 @@
 {
     "name": "@thierryteisseire/leadgenius-skill",
-    "version": "2.0.5",
-    "description": "LeadGenius Pro API Skill \u2014 B2B lead and client management with Cognito JWT auth (cookies + Bearer + API key). Includes E2E test suite.",
+    "version": "2.0.6",
+    "description": "LeadGenius Pro API Skill — B2B lead and client management with Cognito JWT auth (cookies + Bearer + API key). Includes E2E test suite.",
     "main": "SKILL.md",
+    "bin": {
+        "lgp": "./scripts/lgp.py",
+        "leadgenius": "./scripts/lgp.py",
+        "lgp-auth": "./scripts/auth.py",
+        "lgp-test": "./scripts/test_api.py"
+    },
+    "scripts": {
+        "test": "python3 scripts/test_api.py",
+        "auth": "python3 scripts/auth.py",
+        "api": "python3 scripts/api_call.py"
+    },
     "repository": {
         "type": "git",
         "url": "git+https://github.com/thierryteisseire/leadgenius-skill.git"
@@ -12,7 +23,10 @@
         "leadgenius",
         "ai-agent",
         "abm",
-        "lead-generation"
+        "lead-generation",
+        "b2b",
+        "lead-enrichment",
+        "sales-automation"
     ],
     "author": "Thierry Teisseire",
     "license": "MIT",
@@ -25,6 +39,8 @@
         "references/",
         "scripts/",
         "LICENSE.txt",
-        "README.md"
+        "README.md",
+        "LEADGENIUS_IMPORT_GUIDELINES.md",
+        "AUTH_IMPLEMENTATION_PLAN.md"
     ]
 }

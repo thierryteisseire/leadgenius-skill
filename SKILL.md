@@ -7,8 +7,8 @@ description: Comprehensive toolset for interacting with LeadGenius Pro APIs. Use
 
 This skill provides a comprehensive interface for interacting with the **LeadGenius Pro API v1.1**.
 
-> **Base URL:** `https://last.leadgenius.app/api`  
-> **Full Reference:** See [docs/API_REFERENCE.md](../../../docs/API_REFERENCE.md)
+> **Base URL:** `https://last.leadgenius.app/api`
+> **Full Reference:** See [references/api_reference.md](references/api_reference.md)
 
 ---
 
@@ -48,6 +48,65 @@ curl -X POST https://last.leadgenius.app/api/auth \
 ```
 
 Use `tokens.accessToken` as the Bearer token for all subsequent API calls. Tokens expire after 1 hour.
+
+### Token Refresh
+
+When your access token expires, use the refresh token to get a new one without re-authenticating:
+
+```bash
+curl -X POST https://last.leadgenius.app/api/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refreshToken": "<your-refresh-token>"}'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "tokens": {
+    "accessToken": "eyJra...",
+    "idToken": "eyJra...",
+    "refreshToken": "eyJj...",
+    "expiresIn": 3600
+  }
+}
+```
+
+**Python Example:**
+```python
+import requests
+import json
+import time
+
+def refresh_token(refresh_token):
+    response = requests.post(
+        "https://last.leadgenius.app/api/auth/refresh",
+        json={"refreshToken": refresh_token}
+    )
+    return response.json()
+
+def get_valid_token(auth_file="~/.leadgenius_auth.json"):
+    with open(auth_file, 'r') as f:
+        auth = json.load(f)
+
+    # Check if token is expired (simple check)
+    # In production, decode JWT and check exp claim
+    try:
+        # Make a test request
+        response = requests.get(
+            "https://last.leadgenius.app/api/clients",
+            headers={"Authorization": f"Bearer {auth['token']}"}
+        )
+        if response.status_code == 401:
+            # Token expired, refresh it
+            new_tokens = refresh_token(auth['refresh_token'])
+            auth['token'] = new_tokens['tokens']['accessToken']
+            with open(auth_file, 'w') as f:
+                json.dump(auth, f)
+        return auth['token']
+    except:
+        return auth['token']
+```
 
 ### Using Bearer JWT in API Calls
 
@@ -516,6 +575,21 @@ All errors follow a consistent format:
 }
 ```
 
+### HTTP Status Codes
+
+| Code | Meaning | Common Causes | Recommended Action |
+|------|---------|---------------|-------------------|
+| 200 | Success | Request completed successfully | Continue processing |
+| 201 | Created | Resource created successfully | Capture returned ID |
+| 400 | Bad Request | Invalid payload, missing required fields | Validate request body |
+| 401 | Unauthorized | Invalid/expired token, missing auth | Refresh or re-authenticate |
+| 403 | Forbidden | Insufficient permissions, wrong company_id | Check user permissions |
+| 404 | Not Found | Resource doesn't exist | Verify ID/slug is correct |
+| 409 | Conflict | Duplicate resource, constraint violation | Check for existing records |
+| 429 | Too Many Requests | Rate limit exceeded | Implement exponential backoff |
+| 500 | Server Error | Backend issue, database timeout | Retry with exponential backoff |
+| 503 | Service Unavailable | Temporary downtime | Wait and retry |
+
 ### Common Error Types
 - **Authentication** — `no_valid_credentials`, `token_expired`, `federated_jwt`, `no_valid_tokens`
 - **Authorization** — `insufficient_permissions`, `owner_mismatch`
@@ -532,6 +606,65 @@ All errors follow a consistent format:
 | Standard | 100 requests/minute |
 | Premium | 1,000 requests/minute |
 
+### Handling Rate Limits
+
+When you hit rate limits (429 status), implement exponential backoff:
+
+```python
+import time
+import requests
+from requests.exceptions import HTTPError
+
+def make_request_with_retry(url, headers, method="GET", json_data=None, max_retries=5):
+    """Make API request with automatic retry on rate limits and server errors."""
+    for attempt in range(max_retries):
+        try:
+            if method == "GET":
+                response = requests.get(url, headers=headers)
+            elif method == "POST":
+                response = requests.post(url, headers=headers, json=json_data)
+            elif method == "PUT":
+                response = requests.put(url, headers=headers, json=json_data)
+            elif method == "DELETE":
+                response = requests.delete(url, headers=headers, json=json_data)
+
+            response.raise_for_status()
+            return response.json()
+
+        except HTTPError as e:
+            if e.response.status_code == 429:
+                # Rate limited - exponential backoff
+                wait_time = min(60 * (2 ** attempt), 300)  # Max 5 minutes
+                print(f"Rate limited. Waiting {wait_time}s (attempt {attempt + 1}/{max_retries})...")
+                time.sleep(wait_time)
+            elif e.response.status_code >= 500:
+                # Server error - retry with backoff
+                wait_time = min(10 * (2 ** attempt), 60)  # Max 1 minute
+                print(f"Server error. Waiting {wait_time}s (attempt {attempt + 1}/{max_retries})...")
+                time.sleep(wait_time)
+            elif e.response.status_code == 401:
+                # Token expired - try to refresh
+                print("Token expired. Attempting refresh...")
+                # Implement token refresh here
+                raise
+            else:
+                # Other errors - don't retry
+                raise
+
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            raise
+
+    raise Exception(f"Max retries ({max_retries}) exceeded")
+
+# Usage example
+headers = {"Authorization": f"Bearer {access_token}"}
+result = make_request_with_retry(
+    "https://last.leadgenius.app/api/clients",
+    headers=headers
+)
+```
+
 ### Pagination
 - **Standard API**: Cursor-based (`limit` + `nextToken`)
 - **Bulk API**: Token-based (`limit` default 1000, max 5000 + `nextToken`)
@@ -544,6 +677,7 @@ All errors follow a consistent format:
 |--------|-------------|
 | [`scripts/test_api.py`](scripts/test_api.py) | **E2E test suite** — tests auth, client CRUD, lead CRUD with cleanup |
 | [`scripts/lgp.py`](scripts/lgp.py) | Unified CLI for all common operations |
+| [`scripts/import_csv.py`](scripts/import_csv.py) | **CSV import tool** — batch import leads from CSV with rate limiting |
 | [`scripts/api_call.py`](scripts/api_call.py) | Low-level utility for custom raw API requests |
 | [`scripts/auth.py`](scripts/auth.py) | Standalone auth utility |
 
@@ -652,6 +786,40 @@ for batch in chunks(all_leads, 50):
 python3 scripts/api_call.py GET "/leads?client_id=historic-leads&limit=1"
 ```
 
+### Automated CSV Import (Recommended)
+
+Use the provided CSV import script for automated batch import with best practices:
+
+```bash
+# Authenticate first
+python3 scripts/auth.py --email your@email.com
+
+# Import from CSV (auto-creates client)
+python3 scripts/import_csv.py \
+  --csv leads.csv \
+  --client-name "My Client" \
+  --company-url "https://example.com"
+
+# Dry run to test
+python3 scripts/import_csv.py \
+  --csv leads.csv \
+  --client-name "My Client" \
+  --dry-run
+```
+
+**CSV Format:**
+```csv
+firstName,lastName,email,companyName,companyDomain,title,linkedinUrl,notes
+John,Doe,john@acme.com,Acme Corp,acme.com,VP Sales,https://linkedin.com/in/johndoe,Demo lead
+```
+
+The script handles:
+- ✅ Client creation and slug capture
+- ✅ Batch processing (50 leads per request)
+- ✅ Rate limit handling with exponential backoff
+- ✅ Progress tracking and error reporting
+- ✅ Import verification
+
 ### Import Checklist
 - [ ] **Auth**: `~/.leadgenius_auth.json` has both token and API key
 - [ ] **Client created**: Slug (`client_id`) captured from response
@@ -664,7 +832,7 @@ python3 scripts/api_call.py GET "/leads?client_id=historic-leads&limit=1"
 
 ## Reference Material
 
-- **API Reference**: See [docs/API_REFERENCE.md](../../../docs/API_REFERENCE.md) for detailed endpoint descriptions, payloads, and response schemas
+- **API Reference**: See [references/api_reference.md](references/api_reference.md) for detailed endpoint descriptions, payloads, and response schemas
 - **Import Guidelines**: See [LEADGENIUS_IMPORT_GUIDELINES.md](LEADGENIUS_IMPORT_GUIDELINES.md) for detailed pitfalls and lessons learned
 - **Auth Helper**: See `src/utils/apiAuthHelper.ts` for the 3-layer auth implementation
 - **OpenAPI Spec**: See [references/openapi.json](references/openapi.json) for machine-readable schemas
