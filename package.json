@@ -1,6 +1,6 @@
 {
     "name": "@thierryteisseire/leadgenius-skill",
-    "version": "2.0.1",
+    "version": "2.0.2",
     "description": "LeadGenius Pro API Skill \u2014 B2B lead and client management with Cognito JWT auth (cookies + Bearer + API key). Includes E2E test suite.",
     "main": "SKILL.md",
     "repository": {
