@@ -91,7 +91,7 @@ All client operations are scoped by `company_id` (resolved from JWT).
 | Create client | `POST` | `/api/clients` | ✅ Tested (201) |
 | Update client | `PUT` | `/api/clients` | ✅ Tested |
 | Delete client | `DELETE` | `/api/clients?id=<id>` | ✅ Tested |
-| Purge client + leads | `DELETE` | `/api/clients?id=<id>&purge=true` | Documented |
+| Purge client + leads | `DELETE` | `/api/clients?id=<id>&purge=true` | ⚠️ See warning below |
 
 #### Create Client Payload
 ```json
@@ -108,7 +108,7 @@ All client operations are scoped by `company_id` (resolved from JWT).
   "success": true,
   "client": {
     "id": "edd5c738-...",
-    "client_id": "5b9cb5db-...",
+    "client_id": "acme-corp",
     "clientName": "Acme Corp",
     "companyURL": "https://acme.com",
     "description": "Enterprise client for B2B leads",
@@ -118,7 +118,14 @@ All client operations are scoped by `company_id` (resolved from JWT).
 }
 ```
 
-> **Note:** `id` is the DynamoDB record ID. `client_id` is the unique business identifier used in lead operations.
+> ⚠️ **CRITICAL — Slug vs UUID ("Invisible Leads" Bug)**
+> The client record has **TWO** identifiers:
+> - `id` — The internal DynamoDB UUID (e.g. `edd5c738-...`). Used **only** for update/delete of the client record itself.
+> - `client_id` — The human-readable **slug** (e.g. `acme-corp`, `historic-leads`). Used for **all lead operations**.
+>
+> **ALWAYS use the slug (`client_id`) when creating or querying leads.** The UI queries leads by slug. If you mistakenly use the UUID `id` as the lead's `client_id`, the leads will exist in the database but will be **invisible in the UI**.
+>
+> **Verification:** `GET /api/leads?client_id=<slug>&limit=1` — if it returns leads, the UI will show them too.
 
 #### Update Client Payload
 ```json
@@ -129,6 +136,8 @@ All client operations are scoped by `company_id` (resolved from JWT).
 }
 ```
 
+> ⚠️ **Purge Timeout Warning:** The `purge=true` flag on client deletion will time out if the client has more than ~1,000 leads. For large datasets, delete leads first using a concurrent batch deletion script (batches of 50 IDs), then delete the client record.
+
 ---
 
 ### 2. Lead Management ✅
@@ -137,7 +146,7 @@ Leads are stored as `EnrichLeads` in DynamoDB and are scoped by `client_id` and 
 
 | Operation | Method | Endpoint | Status |
 |-----------|--------|----------|--------|
-| List leads | `GET` | `/api/leads?client_id=<client_id>&limit=100` | ✅ Tested |
+| List leads | `GET` | `/api/leads?client_id=<slug>&limit=100` | ✅ Tested |
 | Create single lead | `POST` | `/api/leads` | ✅ Tested (201) |
 | Create batch leads | `POST` | `/api/leads` (with `leads` array) | ✅ Tested (201) |
 | Update single lead | `PUT` | `/api/leads` | ✅ Tested |
@@ -145,10 +154,12 @@ Leads are stored as `EnrichLeads` in DynamoDB and are scoped by `client_id` and 
 | Delete single lead | `DELETE` | `/api/leads?id=<id>` | ✅ Tested |
 | Batch delete leads | `DELETE` | `/api/leads` (with `ids` array body) | ✅ Tested |
 
+> 💡 **Batch Size Recommendation:** Use a batch size of **50 leads** per request for optimal API stability. Larger batches may cause timeouts.
+
 #### Create Single Lead Payload
 ```json
 {
-  "client_id": "5b9cb5db-...",
+  "client_id": "acme-corp",
   "firstName": "John",
   "lastName": "Smith",
   "email": "john.smith@example.com",
@@ -158,13 +169,14 @@ Leads are stored as `EnrichLeads` in DynamoDB and are scoped by `client_id` and 
   "linkedinUrl": "https://linkedin.com/in/johnsmith"
 }
 ```
+> ⚠️ The `client_id` here is the **slug** (e.g. `acme-corp`), NOT the DynamoDB UUID. See the [Slug vs UUID warning](#1-client-management-) above.
 
 #### Create Batch Leads Payload
 ```json
 {
   "leads": [
     {
-      "client_id": "5b9cb5db-...",
+      "client_id": "acme-corp",
       "firstName": "Jane",
       "lastName": "Doe",
       "email": "jane@example.com",
@@ -172,7 +184,7 @@ Leads are stored as `EnrichLeads` in DynamoDB and are scoped by `client_id` and 
       "title": "CTO"
     },
     {
-      "client_id": "5b9cb5db-...",
+      "client_id": "acme-corp",
       "firstName": "Bob",
       "lastName": "Wilson",
       "email": "bob@example.com",
@@ -219,9 +231,31 @@ Leads are stored as `EnrichLeads` in DynamoDB and are scoped by `client_id` and 
 ```
 
 #### List Leads Query Parameters
-- `client_id` (**required**) — The `client_id` field from Client (not the DynamoDB `id`)
+- `client_id` (**required**) — The **slug** from the Client record (not the DynamoDB `id`)
 - `limit` — 1 to 1000 (default: 100)
 - `nextToken` — Pagination token
+
+#### AI Fields & the Notes Catch-All Pattern
+
+Structured AI fields (`aiLeadScore`, `aiQualification`, etc.) are persisted in the backend but **may not be visible** in the standard LeadGenius UI table view. To guarantee visibility and searchability, **aggregate all analytical data into the `notes` field** using Markdown formatting:
+
+```python
+# Recommended: Aggregate AI fields into Notes for visibility
+lead["notes"] = f"""
+## 🎯 AI SCORE: {row['aiLeadScore']} ({row['leadScore']}/100)
+
+### 🧐 JUSTIFICATION
+{row['justification']}
+
+### 💡 STRATEGIC RECOMMENDATIONS
+{row['recommendations']}
+
+### 📝 SDR SYNTHESIS
+{row['sdr_synthesis']}
+""".strip()
+```
+
+This ensures all critical data is immediately visible in the lead detail view and searchable across the UI.
 
 ---
 
@@ -451,13 +485,18 @@ Settings-driven execution routes that trigger enrichment, copyright, and SDR AI 
 All data is strictly isolated. Three isolation layers are enforced:
 1. **Owner-based** — Data filtered by authenticated user's `owner` ID (JWT `sub`)
 2. **Company-based** — Data filtered by user's `company_id` (resolved from CompanyMember table)
-3. **Client-based** — Data filtered by `client_id`
+3. **Client-based** — Data filtered by `client_id` (the **slug**, not the UUID)
 
 ### Key ID Fields
-- **Client `id`** — DynamoDB record ID (used for update/delete)
-- **Client `client_id`** — Business identifier (used in lead operations as `client_id`)
-- **Lead `id`** — DynamoDB record ID (used for update/delete)
-- **`owner`** — Cognito user `sub` (UUID), set automatically from JWT
+
+| Field | Example | Used For |
+|-------|---------|----------|
+| Client `id` | `edd5c738-a1b2-...` (UUID) | Update/delete the **client record itself** |
+| Client `client_id` | `acme-corp` (slug) | ⭐ **All lead operations** — creating, listing, and querying leads |
+| Lead `id` | `lead-a3f2b1c8-...` (UUID) | Update/delete individual **lead records** |
+| `owner` | `4428a4f8-...` (UUID) | Set automatically from JWT `sub` claim |
+
+> 🚨 **Never confuse Client `id` with Client `client_id`.** Using the wrong one when creating leads causes the "Invisible Leads" bug — leads exist in the database but don't appear in the UI. See the [Slug vs UUID warning](#1-client-management-) above.
 
 ### Data Operations Auth Mode
 After `getAuthContext` resolves the owner, all data queries use `generateClient<Schema>({ authMode: 'apiKey' })` — meaning the Amplify API key handles DynamoDB access while the JWT provides identity and isolation.
@@ -569,12 +608,63 @@ python3 scripts/test_api.py --username your@email.com --password YourPassword
 
 # 3. Or make individual API calls
 python3 scripts/api_call.py GET /clients
-python3 scripts/api_call.py GET /leads?client_id=your-client-id
-python3 scripts/api_call.py POST /leads --data '{"client_id": "...", "firstName": "Test", "lastName": "User"}'
+python3 scripts/api_call.py GET /leads?client_id=acme-corp
+python3 scripts/api_call.py POST /leads --data '{"client_id": "acme-corp", "firstName": "Test", "lastName": "User"}'
 ```
+
+---
+
+## High-Fidelity Import Workflow
+
+This is the recommended end-to-end procedure for creating a client workspace and importing leads in a single, robust run. Following these steps prevents data orphaning and ensures full visibility in the UI.
+
+### Step 1: Authenticate (Dual Level)
+```bash
+# JWT for administrative tasks (client creation, GraphQL)
+python3 scripts/lgp.py auth --email your@email.com
+
+# API Key for high-speed batch imports (generate if needed)
+python3 scripts/lgp.py generate-key --name "Import-Key"
+```
+Verify `~/.leadgenius_auth.json` contains both a `token` and an API key.
+
+### Step 2: Create the Client
+Use the REST API or GraphQL mutation. **Capture the returned `client_id` (slug)** from the response — this is what you'll use for all lead operations.
+
+```bash
+python3 scripts/api_call.py POST /clients \
+  --data '{"clientName": "Historic Leads", "description": "Legacy imported leads"}'
+```
+
+### Step 3: Batch Import Leads
+Use the **slug** (`client_id`) from Step 2 in every lead object. Use batch size of **50**.
+
+```python
+# Example import loop
+for batch in chunks(all_leads, 50):
+    payload = {"leads": [{"client_id": "historic-leads", ...} for lead in batch]}
+    response = requests.post(f"{BASE_URL}/api/leads", json=payload, headers=headers)
+```
+
+### Step 4: Verify
+```bash
+# Confirm leads are visible via the same slug the UI uses
+python3 scripts/api_call.py GET "/leads?client_id=historic-leads&limit=1"
+```
+
+### Import Checklist
+- [ ] **Auth**: `~/.leadgenius_auth.json` has both token and API key
+- [ ] **Client created**: Slug (`client_id`) captured from response
+- [ ] **ID mapping correct**: Lead `client_id` uses the slug, NOT the UUID
+- [ ] **Notes populated**: AI fields aggregated into `notes` for UI visibility
+- [ ] **Batch size**: 50 leads per request for stability
+- [ ] **Verification**: `GET /api/leads?client_id=<slug>&limit=1` returns results
+
+---
 
 ## Reference Material
 
 - **API Reference**: See [docs/API_REFERENCE.md](../../../docs/API_REFERENCE.md) for detailed endpoint descriptions, payloads, and response schemas
+- **Import Guidelines**: See [LEADGENIUS_IMPORT_GUIDELINES.md](LEADGENIUS_IMPORT_GUIDELINES.md) for detailed pitfalls and lessons learned
 - **Auth Helper**: See `src/utils/apiAuthHelper.ts` for the 3-layer auth implementation
 - **OpenAPI Spec**: See [references/openapi.json](references/openapi.json) for machine-readable schemas
