@@ -12,16 +12,7 @@ AUTH_FILE = os.path.expanduser("~/.leadgenius_auth.json")
 
 class LeadGeniusCLI:
     def __init__(self, base_url=None):
-        auth_base_url = None
-        if os.path.exists(AUTH_FILE):
-            try:
-                with open(AUTH_FILE, "r") as f:
-                    data = json.load(f)
-                    auth_base_url = data.get("base_url")
-            except:
-                pass
-
-        self.base_url = (base_url or auth_base_url or DEFAULT_BASE_URL).rstrip('/')
+        self.base_url = (base_url or DEFAULT_BASE_URL).rstrip('/')
         self.token = self._load_token()
 
     def _load_token(self):
@@ -46,9 +37,9 @@ class LeadGeniusCLI:
             print("Error: Not authenticated. Set LGP_API_KEY or run 'lgp auth'.")
             sys.exit(1)
 
-        url = f"{self.base_url}/api/agent/{endpoint.lstrip('/')}"
+        url = f"{self.base_url}/api/{endpoint.lstrip('/')}"
         headers = {
-            "X-API-Key": self.token,
+            "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json"
         }
 
@@ -86,22 +77,11 @@ class LeadGeniusCLI:
             if response.status_code == 200:
                 data = response.json()
                 tokens = data.get("tokens", {})
-                jwt_token = tokens.get("accessToken")
-                refresh_token = tokens.get("refreshToken")
-                
-                if not jwt_token:
-                    print("Error: Auth succeeded but no accessToken found.")
-                    return
-
-                # Save JWT (and refresh token)
-                # We save JWT strictly to allow `generate-key` to work next, or as fallback.
+                jwt_token = tokens.get("accessToken") or data.get("jwt_token")
+                # But wait, we want to encourage API Keys.
+                # We save JWT strictly to allow `generate-key` to work next.
                 with open(AUTH_FILE, "w") as f:
-                    json.dump({
-                        "token": jwt_token, 
-                        "refresh_token": refresh_token,
-                        "email": email, 
-                        "base_url": self.base_url
-                    }, f)
+                    json.dump({"token": jwt_token, "email": email, "base_url": self.base_url}, f)
                 print(f"Successfully authenticated as {email}")
                 print("IMPORTANT: Most commands now require an API Key.")
                 print("Run 'lgp generate-key' to create one.")
@@ -192,26 +172,8 @@ class LeadGeniusCLI:
             if not leads:
                 print("No leads found matching criteria.")
                 return
-
-            # Client-side filtering (polyfill for server limitation)
-            filtered_leads = []
+            print(f"Found {len(leads)} lead(s):\n")
             for lead in leads:
-                match = True
-                if first_name and first_name.lower() not in (lead.get('firstName') or '').lower(): match = False
-                if last_name and last_name.lower() not in (lead.get('lastName') or '').lower(): match = False
-                if full_name and full_name.lower() not in (lead.get('fullName') or '').lower(): match = False
-                if email and email.lower() not in (lead.get('email') or '').lower(): match = False
-                if company and company.lower() not in (lead.get('companyName') or '').lower(): match = False
-                
-                if match:
-                    filtered_leads.append(lead)
-
-            if not filtered_leads:
-                print("No leads found matching criteria (checked 100 most recent).")
-                return
-
-            print(f"Found {len(filtered_leads)} lead(s):\n")
-            for lead in filtered_leads:
                 print(f"  ID:       {lead.get('id')}")
                 print(f"  Name:     {lead.get('fullName') or lead.get('contactName', 'N/A')}")
                 print(f"  Title:    {lead.get('title', 'N/A')}")

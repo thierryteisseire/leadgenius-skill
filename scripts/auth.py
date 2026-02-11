@@ -35,8 +35,7 @@ def main():
         if response.status_code == 200:
             data = response.json()
             tokens = data.get("tokens", {})
-            token = tokens.get("accessToken")
-            refresh_token = tokens.get("refreshToken")
+            token = tokens.get("accessToken") or data.get("jwt_token")
             
             if not token:
                 print("Error: Authentication succeeded but no token was returned.")
@@ -47,7 +46,6 @@ def main():
             if args.save:
                 auth_data = {
                     "token": token,
-                    "refresh_token": refresh_token,
                     "email": email,
                     "base_url": args.base_url
                 }
