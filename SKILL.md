@@ -207,13 +207,16 @@ Leads are stored as `EnrichLeads` in DynamoDB and are scoped by `client_id` and 
 |-----------|--------|----------|--------|
 | List leads | `GET` | `/api/leads?client_id=<slug>&limit=100` | ✅ Tested |
 | Create single lead | `POST` | `/api/leads` | ✅ Tested (201) |
-| Create batch leads | `POST` | `/api/leads` (with `leads` array) | ✅ Tested (201) |
+| Create batch leads | `POST` | `/api/leads` (with `leads` array) | ⚠️ See warning below |
 | Update single lead | `PUT` | `/api/leads` | ✅ Tested |
 | Batch update leads | `PUT` | `/api/leads` (with `leads` array) | ✅ Tested |
 | Delete single lead | `DELETE` | `/api/leads?id=<id>` | ✅ Tested |
 | Batch delete leads | `DELETE` | `/api/leads` (with `ids` array body) | ✅ Tested |
 
-> 💡 **Batch Size Recommendation:** Use a batch size of **50 leads** per request for optimal API stability. Larger batches may cause timeouts.
+> 🚨 **CRITICAL — Batch POST May Not Persist:**
+> The batch endpoint (`POST /api/leads` with `{"leads": [...]}`) returns `201 Created` and reports a correct `created` count, but leads **may not be saved to the database**. This was discovered during production HubSpot imports (Feb 2026). **For reliable imports, always POST leads individually** (single object payload). Single-lead POST is confirmed 100% reliable. See [HUBSPOT_TO_LEADGENIUS.md](HUBSPOT_TO_LEADGENIUS.md) Bug #2 for details.
+>
+> 💡 **Batch Size Recommendation:** If using batch POST, use a batch size of **50 leads** per request. For maximum reliability, prefer **single-lead POST** with a 150ms delay between requests (~400 leads/min).
 
 #### Create Single Lead Payload
 ```json
@@ -770,14 +773,17 @@ python3 scripts/api_call.py POST /clients \
   --data '{"clientName": "Historic Leads", "description": "Legacy imported leads"}'
 ```
 
-### Step 3: Batch Import Leads
-Use the **slug** (`client_id`) from Step 2 in every lead object. Use batch size of **50**.
+### Step 3: Import Leads
+Use the **slug** (`client_id`) from Step 2 in every lead object.
+
+> ⚠️ **Use single-lead POST for reliability.** Batch POST (`{"leads": [...]}`) may return 201 but not persist leads. See [HUBSPOT_TO_LEADGENIUS.md](HUBSPOT_TO_LEADGENIUS.md) Bug #2.
 
 ```python
-# Example import loop
-for batch in chunks(all_leads, 50):
-    payload = {"leads": [{"client_id": "historic-leads", ...} for lead in batch]}
+# Recommended: Single-lead POST (100% reliable)
+for lead in all_leads:
+    payload = {"client_id": "historic-leads", "firstName": "...", ...}
     response = requests.post(f"{BASE_URL}/api/leads", json=payload, headers=headers)
+    time.sleep(0.15)  # ~400 leads/min, safe rate
 ```
 
 ### Step 4: Verify
@@ -830,9 +836,68 @@ The script handles:
 
 ---
 
+## HubSpot → LeadGenius Import
+
+For importing contacts from HubSpot CRM into LeadGenius, a comprehensive battle-tested guide is available. This covers all the nuances discovered during production imports.
+
+> **Full Guide:** [HUBSPOT_TO_LEADGENIUS.md](HUBSPOT_TO_LEADGENIUS.md)
+
+### Quick Reference: HubSpot Field Mapping
+
+| HubSpot Source | LeadGenius Field | Notes |
+|---|---|---|
+| `contact.properties.firstname` | `firstName` | Direct mapping |
+| `contact.properties.lastname` | `lastName` | Fallback to email-derived if empty |
+| `contact.properties.email` | `email` | Required — skip contacts without |
+| Associated Company `.name` | `companyName` | Via `&associations=companies`, NOT `contact.company` |
+| Associated Company `.domain` | `companyUrl` | Via company associations |
+| `contact.properties.jobtitle` | `title` | Omit if empty |
+| `contact.properties.phone` / `.mobilephone` | `phoneNumber` | ⚠️ NOT `phone` — wrong name causes 500 |
+| `lifecyclestage`, `hs_lead_status`, `industry` | `notes` | Append to notes for UI visibility |
+
+### Critical HubSpot Import Rules
+
+1. **Use Single-Lead POST** — Batch `{"leads": [...]}` returns 201 but does NOT persist. Always POST one lead at a time.
+2. **Never Send Empty Strings** — Omit any optional field that has an empty string value. Empty strings cause 500 errors.
+3. **Phone Field Name** — Use `phoneNumber`, NOT `phone`. Wrong name causes 500 Internal Server Error.
+4. **LastName Fallback** — Use `"-"` (dash) for missing lastNames. A single dot (`"."`) causes 500 errors.
+5. **Company from Associations** — HubSpot's `contact.properties.company` is almost always empty. Fetch via `&associations=companies` and batch-read company details.
+6. **JWT Refresh** — Tokens expire after 1 hour. Refresh every ~200 leads during import.
+7. **Use client_id Slug** — Same as the core import rule: always use the `client_id` (slug), never the `id` (UUID).
+
+### Known Bugs (HubSpot-Specific)
+
+| # | Bug | Symptom | Fix |
+|---|-----|---------|-----|
+| 1 | Invisible Leads | 201 but not in UI | Use `client_id` slug, not `id` UUID |
+| 2 | Batch POST Non-Persistence | 201 + count but leads gone | POST leads individually |
+| 3 | `phone` Field Name | 500 error | Use `phoneNumber` |
+| 4 | Empty String Fields | 500 error | Omit empty fields entirely |
+| 5 | HubSpot Company Field Empty | No companyName imported | Use associations API |
+| 6 | Dot-Only LastName | 500 error | Use `"-"` as fallback |
+| 7 | Unreliable Total Count | API returns page size as total | Paginate with `lastKey` or trust import counter |
+
+### Pre-Flight Checklist (HubSpot Import)
+
+- [ ] LeadGenius auth — `~/.leadgenius_auth.json` exists with valid `token`
+- [ ] HubSpot token — `.env` contains `HUBSPOT_ACCESS_TOKEN`
+- [ ] Client created — `POST /api/clients` returned successfully
+- [ ] CLIENT_ID captured — using `client_id` (slug), NOT `id` (UUID)
+- [ ] Associations enabled — HubSpot query includes `&associations=companies`
+- [ ] Company data — using associated company objects, not contact `company` field
+- [ ] Field names correct — `phoneNumber` (not `phone`), `companyUrl`, `title`
+- [ ] No empty strings — all empty optional fields are omitted, not `""`
+- [ ] Names populated — fallback logic for missing `firstName`/`lastName`
+- [ ] Single-lead POST — NOT using batch `{"leads": [...]}` endpoint
+- [ ] Token refresh — logic to re-auth every 200 leads
+- [ ] Test with 5 leads first — verify persistence before full import
+
+---
+
 ## Reference Material
 
 - **API Reference**: See [references/api_reference.md](references/api_reference.md) for detailed endpoint descriptions, payloads, and response schemas
 - **Import Guidelines**: See [LEADGENIUS_IMPORT_GUIDELINES.md](LEADGENIUS_IMPORT_GUIDELINES.md) for detailed pitfalls and lessons learned
+- **HubSpot Import Guide**: See [HUBSPOT_TO_LEADGENIUS.md](HUBSPOT_TO_LEADGENIUS.md) for the complete HubSpot → LeadGenius import workflow, field mapping, script templates, and known bugs
 - **Auth Helper**: See `src/utils/apiAuthHelper.ts` for the 3-layer auth implementation
 - **OpenAPI Spec**: See [references/openapi.json](references/openapi.json) for machine-readable schemas
