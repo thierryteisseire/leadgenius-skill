@@ -1,10 +1,16 @@
 import requests
 import json
+import os
+import sys
+
+API_KEY = os.environ.get("LEADGENIUS_APPSYNC_API_KEY")
+if not API_KEY:
+    sys.exit("Error: set the LEADGENIUS_APPSYNC_API_KEY environment variable.")
 
 url = "https://ugdmgjyxenhipk74b5swx4xvuy.appsync-api.us-east-1.amazonaws.com/graphql"
 headers = {
     "Content-Type": "application/json",
-    "x-api-key": "da2-5u4a7hbhvbb2fdsj2ys2h2pljy"
+    "x-api-key": API_KEY
 }
 
 company_id = "company-1769080774403-0fbkihn"

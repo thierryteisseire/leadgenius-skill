@@ -1,5 +1,11 @@
 import requests
 import json
+import os
+import sys
+
+API_KEY = os.environ.get("LEADGENIUS_APPSYNC_API_KEY")
+if not API_KEY:
+    sys.exit("Error: set the LEADGENIUS_APPSYNC_API_KEY environment variable.")
 
 campaign_id = "495dba4f-e39d-4d0d-aefd-54fffd606b3c"
 lead_ids = [
@@ -20,7 +26,7 @@ company_id = "company-1769080774403-0fbkihn"
 client_id = "client_global_tech_solutions"
 headers = {
     "Content-Type": "application/json",
-    "x-api-key": "da2-5u4a7hbhvbb2fdsj2ys2h2pljy"
+    "x-api-key": API_KEY
 }
 
 # Update Campaign
